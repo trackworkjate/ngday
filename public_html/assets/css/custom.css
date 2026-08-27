@@ -1,0 +1,126 @@
+/* Monday.com High-Density Design System & UI Styling */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --font-sans: 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --color-primary: #0073ea;
+  --color-primary-hover: #0060b9;
+  --monday-border: #e6e9ef;
+  --monday-hover: #f5f6f8;
+}
+
+* {
+  font-family: 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #f7f9fb;
+  color: #323338;
+}
+
+button, input, select, textarea {
+  font-family: var(--font-sans);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #c5c7d0;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+/* Grid & Table Borders */
+.monday-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.monday-table th, .monday-table td {
+  border-right: 1px solid var(--monday-border);
+  border-bottom: 1px solid var(--monday-border);
+}
+
+.monday-table th:first-child, .monday-table td:first-child {
+  border-left: 1px solid var(--monday-border);
+}
+
+.monday-table tr:hover td {
+  background-color: var(--monday-hover);
+}
+
+/* Status Badges */
+.status-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+  transition: opacity 0.15s ease-in-out;
+  user-select: none;
+}
+
+.status-badge:hover {
+  opacity: 0.9;
+}
+
+/* Progress Column Cell */
+.progress-bar-container {
+  width: 100%;
+  height: 18px;
+  background-color: #e6e9ef;
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background-color: #00c875;
+  transition: width 0.3s ease;
+}
+
+/* Sidebar Active Item */
+.sidebar-board-item.active {
+  background-color: #dcdfec;
+  color: #0073ea;
+  font-weight: 600;
+}
+
+/* Subitems Container Indentation */
+.subitem-container {
+  border-left: 4px solid var(--color-primary);
+  background-color: #fafbfc;
+}
+
+/* Drag Ghost */
+.sortable-ghost {
+  opacity: 0.4;
+  background-color: #e5f4ff !important;
+}
+
+.sortable-chosen {
+  background-color: #f0f7ff !important;
+}
+
+/* Live indicator */
+.live-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #00c875;
+  box-shadow: 0 0 0 2px rgba(0, 200, 117, 0.2);
+}

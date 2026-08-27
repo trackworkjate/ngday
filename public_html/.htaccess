@@ -1,0 +1,11 @@
+<IfModule mod_mime.c>
+    AddType application/json .json
+    AddCharset UTF-8 .json
+    AddCharset UTF-8 .php
+    AddCharset UTF-8 .js
+    AddCharset UTF-8 .css
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+</IfModule>

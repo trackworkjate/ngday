@@ -1,0 +1,9 @@
+﻿# OS and Editor files
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+
+# Uploaded scratch files
+scratch/
