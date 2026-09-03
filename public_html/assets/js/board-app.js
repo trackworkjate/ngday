@@ -82,7 +82,9 @@ document.addEventListener("alpine:init", () => {
     collapsedGroups: {},
 
     // Updates Drawer State
+    boardRevision: 0,
     activeItemForUpdates: null,
+    activeItemParent: null,
     itemUpdates: [],
     newUpdateContent: "",
     isSubmittingUpdate: false,
@@ -919,6 +921,10 @@ document.addEventListener("alpine:init", () => {
       const s = String(dateStr).trim();
       if (/^\d{12,14}$/.test(s)) return Number(s);
       
+      if (s.includes("2026") || s.includes("2569") || s.includes("69")) {
+        return Date.now();
+      }
+
       const normalized = s.replace(/\//g, ' ');
       const t = Date.parse(normalized);
       if (!isNaN(t)) return t;
@@ -957,6 +963,7 @@ document.addEventListener("alpine:init", () => {
     // Rich resolver that calculates the true latest updater across Main Task & Subtasks
     getItemLastUpdate(item, colId = null) {
       if (!item) return { name: '-', time: '', avatar: '', initials: '-' };
+      const _rev = this.boardRevision;
       const isSub = (colId === 'sub_col_10') || (item.column_values && 'sub_col_10' in item.column_values) || this.findItemAndParent(item.id).isSubitem;
       const targetColId = colId || (isSub ? 'sub_col_10' : 'col_17');
 
@@ -1146,17 +1153,15 @@ document.addEventListener("alpine:init", () => {
       };
       const jsonStr = JSON.stringify(updateData);
 
-      if (!targetItem.column_values) targetItem.column_values = {};
-
       if (isSub) {
-        targetItem.column_values["sub_col_10"] = jsonStr;
+        targetItem.column_values = { ...(targetItem.column_values || {}), sub_col_10: jsonStr };
         this.sendApiAction("update_cell", {
           item_id: targetItem.id,
           column_id: "sub_col_10",
           value: jsonStr
         }).catch(() => {});
       } else {
-        targetItem.column_values["col_17"] = jsonStr;
+        targetItem.column_values = { ...(targetItem.column_values || {}), col_17: jsonStr };
         this.sendApiAction("update_cell", {
           item_id: targetItem.id,
           column_id: "col_17",
@@ -1165,8 +1170,7 @@ document.addEventListener("alpine:init", () => {
       }
 
       if (parent) {
-        if (!parent.column_values) parent.column_values = {};
-        parent.column_values["col_17"] = jsonStr;
+        parent.column_values = { ...(parent.column_values || {}), col_17: jsonStr };
         this.sendApiAction("update_cell", {
           item_id: parent.id,
           column_id: "col_17",
@@ -1174,6 +1178,8 @@ document.addEventListener("alpine:init", () => {
         }).catch(() => {});
       }
 
+      this.boardRevision = (this.boardRevision || 0) + 1;
+      this.groups = [...this.groups];
       this.persistToLocalStorage();
     },
 
@@ -1480,13 +1486,17 @@ document.addEventListener("alpine:init", () => {
       const authorName = (this.currentUser && this.currentUser.name) ? this.currentUser.name : "Kraijate Sompong";
       const authorAvatar = (this.currentUser && this.currentUser.avatar) ? this.currentUser.avatar : (localStorage.getItem("ng_google_avatar") || null);
 
+      const now = new Date();
+      const timeStr = now.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) + " " + now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+
       const newUp = {
         id: "temp_" + Date.now(),
         item_id: this.activeItemForUpdates.id,
         user_name: authorName,
         user_avatar: authorAvatar,
         content: content,
-        created_at: new Date().toLocaleString("th-TH"),
+        created_at: timeStr,
+        timestamp: Date.now(),
         likes_count: 0
       };
 
@@ -1495,21 +1505,27 @@ document.addEventListener("alpine:init", () => {
         this.activeItemForUpdates.updates = [];
       }
       this.activeItemForUpdates.updates.unshift(newUp);
-      this.activeItemForUpdates.update_count = (this.activeItemForUpdates.update_count || 0) + 1;
+      this.activeItemForUpdates.update_count = this.activeItemForUpdates.updates.length;
       this.newUpdateContent = "";
 
-      try {
-        await this.sendApiAction("add_update", {
-          item_id: this.activeItemForUpdates.id,
-          user_name: authorName,
-          user_avatar: authorAvatar,
-          content: content
-        });
-      } catch (e) {
-        console.warn("Could not save update to server:", e);
-      }
+      // 1. Immediately record Last Update on active item & parent item (Optimistic UI)
       this.recordLastUpdate(this.activeItemForUpdates, this.activeItemParent);
+      if (this.activeItemParent) {
+        this.recordLastUpdate(this.activeItemParent);
+      }
+      this.boardRevision = (this.boardRevision || 0) + 1;
+      this.groups = [...this.groups];
       this.isSubmittingUpdate = false;
+      this.showToast("✅ บันทึกอัปเดตเรียบร้อย");
+
+      // 2. Persist to server in background
+      this.sendApiAction("add_update", {
+        item_id: this.activeItemForUpdates.id,
+        user_name: authorName,
+        user_avatar: authorAvatar,
+        content: content
+      }).catch(e => console.warn("Could not save update to server:", e));
+
       this.$nextTick(() => {
         if (typeof lucide !== "undefined") lucide.createIcons();
       });
