@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/database.php';
@@ -33,7 +33,7 @@ class DataPersistence {
         return false;
     }
 
-    public static function updateCellInJson(string|int $itemId, string $colId, $value): bool {
+    public static function updateCellInJson($itemId, string $colId, $value): bool {
         $data = self::loadBoardJson();
         $strItemId = (string)$itemId;
         $updated = false;
@@ -78,7 +78,7 @@ class DataPersistence {
         return false;
     }
 
-    public static function updateItemNameInJson(string|int $itemId, string $name): bool {
+    public static function updateItemNameInJson($itemId, string $name): bool {
         $data = self::loadBoardJson();
         $strItemId = (string)$itemId;
         $updated = false;
@@ -143,7 +143,7 @@ class DataPersistence {
         return self::saveBoardJson($data);
     }
 
-    public static function updateGroupTimelineInJson(string|int $groupId, string $field, ?string $dateVal): bool {
+    public static function updateGroupTimelineInJson($groupId, string $field, ?string $dateVal): bool {
         $data = self::loadBoardJson();
         $strGroupId = (string)$groupId;
         $updated = false;

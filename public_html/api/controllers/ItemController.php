@@ -71,7 +71,7 @@ class ItemController {
         ];
     }
 
-    public function updateCell(string|int $itemId, array $data): array {
+    public function updateCell($itemId, array $data): array {
         $columnId = $data['column_id'] ?? '';
         $value = $data['value'] ?? null;
 
@@ -120,7 +120,7 @@ class ItemController {
         ];
     }
 
-    public function updateName(string|int $itemId, string $name): array {
+    public function updateName($itemId, string $name): array {
         $name = trim($name);
         if (empty($name)) {
             http_response_code(400);
@@ -139,7 +139,7 @@ class ItemController {
         return ['success' => true, 'id' => $itemId, 'name' => $name];
     }
 
-    public function delete(string|int $itemId): array {
+    public function delete($itemId): array {
         DataPersistence::deleteItemsInJson([$itemId]);
 
         if ($this->pdo) {

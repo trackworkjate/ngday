@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 declare(strict_types=1);
 
 /**
@@ -93,7 +93,7 @@ class SimpleXLSX {
         return true;
     }
 
-    public function rows(int|string $sheetIndexOrName = 0): array {
+    public function rows($sheetIndexOrName = 0): array {
         $zip = new ZipArchive();
         if ($zip->open($this->filename) !== true) {
             return [];
