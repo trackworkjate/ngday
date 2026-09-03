@@ -847,7 +847,7 @@ if ($sessionUser) {
 
               <!-- ITEMS LIST -->
               <div class="divide-y divide-[#e6e9ef]">
-                <template x-for="item in getSortedItems(group.items)" :key="item.id + '_' + boardRevision">
+                <template x-for="item in getSortedItems(group.items)" :key="item.id">
                   <div class="group/itemrow">
                     
                     <!-- 1. MAIN TASK ROW -->
@@ -1281,7 +1281,7 @@ if ($sessionUser) {
                                 </tr>
                               </thead>
                               <tbody class="divide-y divide-[#e6e9ef]">
-                                <template x-for="(sub, sIdx) in getSortedSubitems(item)" :key="sub.id + '_' + boardRevision">
+                                <template x-for="(sub, sIdx) in getSortedSubitems(item)" :key="sub.id">
                                   <tr 
                                     class="hover:bg-[#f5f6f8] transition-colors group/subrow"
                                     :class="{'bg-[#edf5ff] hover:bg-[#e4efff]': isItemSelected(sub.id)}"

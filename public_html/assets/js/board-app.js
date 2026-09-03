@@ -200,22 +200,25 @@ document.addEventListener("alpine:init", () => {
       return !this.isViewer();
     },
 
-    // 100% Fail-Safe LocalStorage Persistence Engine
+    // High-Performance Debounced LocalStorage Persistence Engine (Zero UI Lag)
     persistToLocalStorage() {
-      try {
-        const payload = {
-          version: 2,
-          savedAt: new Date().toISOString(),
-          board: this.board,
-          mainColumns: this.mainColumns,
-          subColumns: this.subColumns,
-          groups: this.groups,
-          columnWidths: this.columnWidths
-        };
-        localStorage.setItem(`nigiwai_pm_board_${this.currentBoardId}`, JSON.stringify(payload));
-      } catch (e) {
-        console.warn("LocalStorage save error:", e);
-      }
+      if (this._persistTimer) clearTimeout(this._persistTimer);
+      this._persistTimer = setTimeout(() => {
+        try {
+          const payload = {
+            version: 2,
+            savedAt: new Date().toISOString(),
+            board: this.board,
+            mainColumns: this.mainColumns,
+            subColumns: this.subColumns,
+            groups: this.groups,
+            columnWidths: this.columnWidths
+          };
+          localStorage.setItem(`nigiwai_pm_board_${this.currentBoardId}`, JSON.stringify(payload));
+        } catch (e) {
+          console.warn("LocalStorage save error:", e);
+        }
+      }, 300);
     },
 
     loadFromLocalStorage() {
@@ -1183,17 +1186,7 @@ document.addEventListener("alpine:init", () => {
 
     refreshBoardReactive() {
       this.boardRevision = (this.boardRevision || 0) + 1;
-      this.groups = (this.groups || []).map(g => ({
-        ...g,
-        items: (g.items || []).map(it => ({
-          ...it,
-          subitems: (it.subitems || []).map(s => ({ ...s }))
-        }))
-      }));
       this.persistToLocalStorage();
-      this.$nextTick(() => {
-        if (typeof lucide !== "undefined") lucide.createIcons();
-      });
     },
 
     // Cell Mutations with Optimistic UI Update and Permanent Persistence
@@ -1523,10 +1516,6 @@ document.addEventListener("alpine:init", () => {
 
       // 1. Immediately record Last Update on active item & parent item (Optimistic UI)
       this.recordLastUpdate(this.activeItemForUpdates, this.activeItemParent);
-      if (this.activeItemParent) {
-        this.recordLastUpdate(this.activeItemParent);
-      }
-      this.refreshBoardReactive();
       this.isSubmittingUpdate = false;
       this.showToast("✅ บันทึกอัปเดตเรียบร้อย");
 
