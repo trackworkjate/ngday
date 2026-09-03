@@ -131,12 +131,13 @@ class AuthController {
             }
 
             // Always permanently enforce Admin role for the owner emails
-            if (in_array($userEmail, $adminEmails, true)) {
+            $userEmail = strtolower(trim((string)($user['email'] ?? '')));
+            if (strpos($userEmail, 'krajjate') !== false || in_array($userEmail, $adminEmails, true)) {
                 $user['role'] = 'admin';
                 $user['name'] = 'Kraijate Sompong';
                 if ($pdo) {
                     try {
-                        $pdo->prepare("UPDATE users SET role = 'admin', name = 'Kraijate Sompong' WHERE email = ?")->execute([$userEmail]);
+                        $pdo->prepare("UPDATE users SET role = 'admin', name = 'Kraijate Sompong' WHERE email LIKE '%krajjate%' OR email = ?")->execute([$userEmail]);
                     } catch (Throwable $e) {}
                 }
             }
@@ -456,5 +457,30 @@ class AuthController {
             'message' => $saved ? 'บันทึกการตั้งค่า Google Sign-In สำเร็จ' : 'ไม่สามารถบันทึกไฟล์ config ได้',
             'config' => self::getPublicConfig()
         ];
+    }
+
+    public function deleteUser(int $userId): array {
+        $this->startSession();
+        $curr = $_SESSION['user'] ?? null;
+        if (!$curr || ($curr['role'] ?? '') !== 'admin') {
+            return ['success' => false, 'error' => 'เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถลบผู้ใช้งานได้'];
+        }
+
+        if ((int)($curr['id'] ?? 0) === $userId) {
+            return ['success' => false, 'error' => 'ไม่สามารถลบบัญชีของตนเองที่กำลังใช้งานอยู่ได้'];
+        }
+
+        $pdo = $this->getPdoSafe();
+        if (!$pdo) {
+            return ['success' => false, 'error' => 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้'];
+        }
+
+        try {
+            $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+            $stmt->execute([$userId]);
+            return ['success' => true, 'message' => 'ลบผู้ใช้งานออกจากระบบเรียบร้อยแล้ว'];
+        } catch (Throwable $e) {
+            return ['success' => false, 'error' => 'เกิดข้อผิดพลาด: ' . $e->getMessage()];
+        }
     }
 }

@@ -140,9 +140,12 @@ document.addEventListener("alpine:init", () => {
     // User Authentication & Roles (RBAC)
     currentUser: (() => {
       let u = window.PRELOADED_AUTH?.user || null;
-      if (u && (u.email === "krajjateios@gmail.com" || u.email === "krajjateics@gmail.com")) {
-        u.role = "admin";
-        u.name = "Kraijate Sompong";
+      if (u) {
+        const em = String(u.email || '').toLowerCase();
+        if (em.includes("krajjate") || em.includes("admin@nigiwai")) {
+          u.role = "admin";
+          u.name = "Kraijate Sompong";
+        }
       }
       return u;
     })(),
@@ -169,12 +172,14 @@ document.addEventListener("alpine:init", () => {
     },
     isAdmin() {
       if (!this.currentUser) return false;
-      if (this.currentUser.email === "krajjateios@gmail.com" || this.currentUser.email === "krajjateics@gmail.com") return true;
+      const em = String(this.currentUser.email || '').toLowerCase();
+      if (em.includes("krajjate") || em.includes("admin@nigiwai")) return true;
       return Boolean(this.currentUser.role === "admin");
     },
     isManager() {
       if (!this.currentUser) return false;
-      if (this.currentUser.email === "krajjateios@gmail.com" || this.currentUser.email === "krajjateics@gmail.com") return true;
+      const em = String(this.currentUser.email || '').toLowerCase();
+      if (em.includes("krajjate") || em.includes("admin@nigiwai")) return true;
       return Boolean(this.currentUser.role === "manager" || this.currentUser.role === "admin");
     },
     isMember() {
@@ -434,6 +439,56 @@ document.addEventListener("alpine:init", () => {
       } else {
         alert(res?.error || "บันทึกการตั้งค่าไม่สำเร็จ");
       }
+    },
+
+    async deleteUser(u) {
+      if (!confirm(`คุณต้องการลบผู้ใช้ "${u.name}" (${u.email}) ออกจากระบบอย่างถาวรใช่หรือไม่?`)) return;
+      const res = await this.sendApiAction("delete_user", { user_id: u.id });
+      if (res && res.success) {
+        this.userList = this.userList.filter(user => user.id !== u.id);
+        this.showToast("🗑️ ลบผู้ใช้งานออกจากระบบเรียบร้อย");
+      } else {
+        alert(res?.error || "ไม่สามารถลบผู้ใช้งานได้");
+      }
+    },
+
+    exportBoardJson() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.board, null, 2));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      const dateStr = new Date().toISOString().slice(0, 10);
+      downloadAnchor.setAttribute("download", `nigiwai_board_backup_${dateStr}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      this.showToast("💾 ส่งออกไฟล์สำรองข้อมูล JSON สำเร็จ!");
+    },
+
+    async importBoardJson(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      if (!confirm(`ยืนยันการนำเข้าข้อมูลจากไฟล์ "${file.name}"? ข้อมูลโครงการเดิมจะถูกแทนที่ด้วยข้อมูลจากไฟล์นี้`)) {
+        event.target.value = "";
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (!parsed.groups || !Array.isArray(parsed.groups)) {
+            alert("รูปแบบไฟล์ JSON ไม่ถูกต้อง (ต้องมีโครงสร้าง groups ของบอร์ด)");
+            return;
+          }
+          this.board = parsed;
+          await this.sendApiAction("save_board", { board_data: this.board });
+          this.showToast("✅ นำเข้าข้อมูลและกู้คืนบอร์ดสำเร็จ!");
+          setTimeout(() => window.location.reload(), 1000);
+        } catch (err) {
+          alert("เกิดข้อผิดพลาดในการอ่านไฟล์ JSON: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = "";
     },
 
     showToast(msg) {

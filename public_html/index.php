@@ -48,18 +48,31 @@ if (empty($authConfig['google_client_id'])) {
 if (session_status() === PHP_SESSION_NONE) {
     @session_start();
 }
-// Automatically purge any old fake mock session so users log in with Google Profile
-if (isset($_SESSION['user']) && ($_SESSION['user']['name'] === 'ผู้ดูแลระบบ (Admin)' || empty($_SESSION['user']['avatar']) || strpos($_SESSION['user']['avatar'] ?? '', 'ui-avatars.com') !== false)) {
-    unset($_SESSION['user']);
-}
+
+// Automatically enforce Admin role in DB for owner
+try {
+    require_once __DIR__ . '/api/config/database.php';
+    $db = Database::getConnection();
+    if ($db) {
+        $db->exec("UPDATE users SET role = 'admin', name = 'Kraijate Sompong' WHERE email LIKE '%krajjate%' OR email = 'admin@nigiwaigroup.com'");
+    }
+} catch (Throwable $e) {}
+
 if (isset($_SESSION['user'])) {
-    $email = strtolower($_SESSION['user']['email'] ?? '');
-    if (in_array($email, ['krajjateios@gmail.com', 'krajjateics@gmail.com', 'admin@nigiwaigroup.com'], true)) {
+    $email = strtolower(trim((string)($_SESSION['user']['email'] ?? '')));
+    if (strpos($email, 'krajjate') !== false || in_array($email, ['krajjateios@gmail.com', 'krajjateics@gmail.com', 'admin@nigiwaigroup.com'], true)) {
         $_SESSION['user']['role'] = 'admin';
         $_SESSION['user']['name'] = 'Kraijate Sompong';
     }
 }
 $sessionUser = $_SESSION['user'] ?? null;
+if ($sessionUser) {
+    $email = strtolower(trim((string)($sessionUser['email'] ?? '')));
+    if (strpos($email, 'krajjate') !== false || in_array($email, ['krajjateios@gmail.com', 'krajjateics@gmail.com', 'admin@nigiwaigroup.com'], true)) {
+        $sessionUser['role'] = 'admin';
+        $sessionUser['name'] = 'Kraijate Sompong';
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -401,59 +414,71 @@ $sessionUser = $_SESSION['user'] ?? null;
 
           <!-- State 2: Logged In -->
           <template x-if="isLoggedIn()">
-            <div class="relative">
+            <div class="flex items-center gap-2">
+              <!-- Quick Admin Console Button for Admins -->
               <button 
-                @click="userDropdownOpen = !userDropdownOpen" 
-                class="flex items-center gap-1.5 p-1 pl-2 pr-2.5 rounded-full hover:bg-gray-100 border border-gray-200 transition-all shadow-2xs bg-white"
-                :title="'ผู้ใช้งาน: ' + currentUser.name + ' (' + currentUser.role + ')'"
+                x-show="isAdmin()" 
+                @click="openUserManagementModal()" 
+                class="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white text-[11px] font-bold shadow-xs transition-all hover:scale-105"
+                title="ศูนย์ควบคุมระบบของผู้ดูแล (Admin Control Center)"
               >
-                <img :src="currentUser.avatar" class="w-6 h-6 rounded-full object-cover border border-gray-200 shadow-xs" />
-                <span class="text-xs font-semibold text-gray-700 max-w-[90px] truncate" x-text="currentUser.name"></span>
-                <span 
-                  class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full tracking-wider border shadow-2xs"
-                  :class="{
-                    'bg-indigo-100 text-indigo-700 border-indigo-200': currentUser.role === 'admin',
-                    'bg-sky-100 text-sky-700 border-sky-200': currentUser.role === 'manager',
-                    'bg-emerald-100 text-emerald-700 border-emerald-200': currentUser.role === 'member',
-                    'bg-purple-100 text-purple-700 border-purple-200': currentUser.role === 'viewer'
-                  }"
-                  x-text="currentUser.role"
-                ></span>
-                <i data-lucide="chevron-down" class="w-3 h-3 text-gray-400"></i>
+                <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                <span>Admin Console</span>
               </button>
 
-              <!-- User Dropdown Menu -->
-              <div 
-                x-show="userDropdownOpen" 
-                x-transition:enter="transition ease-out duration-100"
-                x-transition:enter-start="transform opacity-0 scale-95"
-                x-transition:enter-end="transform opacity-100 scale-100"
-                x-transition:leave="transition ease-in duration-75"
-                x-transition:leave-start="transform opacity-100 scale-100"
-                x-transition:leave-end="transform opacity-0 scale-95"
-                class="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50 text-xs divide-y divide-gray-100"
-                style="display: none;"
-              >
-                <!-- Profile Info Header -->
-                <div class="px-4 py-2.5 flex items-center gap-2.5">
-                  <img :src="currentUser.avatar" class="w-9 h-9 rounded-full object-cover border border-gray-200 shadow-2xs" />
-                  <div class="truncate">
-                    <div class="font-bold text-gray-900 truncate" x-text="currentUser.name"></div>
-                    <div class="text-[11px] text-gray-500 truncate" x-text="currentUser.email"></div>
-                    <div class="mt-0.5">
-                      <span 
-                        class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full"
-                        :class="{
-                          'bg-indigo-50 text-indigo-700': currentUser.role === 'admin',
-                          'bg-sky-50 text-sky-700': currentUser.role === 'manager',
-                          'bg-emerald-50 text-emerald-700': currentUser.role === 'member',
-                          'bg-purple-50 text-purple-700': currentUser.role === 'viewer'
-                        }"
-                        x-text="'Role: ' + currentUser.role"
-                      ></span>
+              <div class="relative">
+                <button 
+                  @click="userDropdownOpen = !userDropdownOpen" 
+                  class="flex items-center gap-1.5 p-1 pl-2 pr-2.5 rounded-full hover:bg-gray-100 border border-gray-200 transition-all shadow-2xs bg-white"
+                  :title="'ผู้ใช้งาน: ' + currentUser.name + ' (' + (isAdmin() ? 'admin' : currentUser.role) + ')'"
+                >
+                  <img :src="currentUser.avatar" class="w-6 h-6 rounded-full object-cover border border-gray-200 shadow-xs" />
+                  <span class="text-xs font-semibold text-gray-700 max-w-[90px] truncate" x-text="currentUser.name"></span>
+                  <span 
+                    class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full tracking-wider border shadow-2xs"
+                    :class="{
+                      'bg-indigo-100 text-indigo-700 border-indigo-200': isAdmin(),
+                      'bg-sky-100 text-sky-700 border-sky-200': !isAdmin() && isManager(),
+                      'bg-emerald-100 text-emerald-700 border-emerald-200': !isAdmin() && !isManager() && isMember(),
+                      'bg-purple-100 text-purple-700 border-purple-200': !isAdmin() && !isManager() && !isMember()
+                    }"
+                    x-text="isAdmin() ? 'ADMIN' : (currentUser.role || 'MEMBER').toUpperCase()"
+                  ></span>
+                  <i data-lucide="chevron-down" class="w-3 h-3 text-gray-400"></i>
+                </button>
+
+                <!-- User Dropdown Menu -->
+                <div 
+                  x-show="userDropdownOpen" 
+                  x-transition:enter="transition ease-out duration-100"
+                  x-transition:enter-start="transform opacity-0 scale-95"
+                  x-transition:enter-end="transform opacity-100 scale-100"
+                  x-transition:leave="transition ease-in duration-75"
+                  x-transition:leave-start="transform opacity-100 scale-100"
+                  x-transition:leave-end="transform opacity-0 scale-95"
+                  class="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50 text-xs divide-y divide-gray-100"
+                  style="display: none;"
+                >
+                  <!-- Profile Info Header -->
+                  <div class="px-4 py-2.5 flex items-center gap-2.5">
+                    <img :src="currentUser.avatar" class="w-9 h-9 rounded-full object-cover border border-gray-200 shadow-2xs" />
+                    <div class="truncate">
+                      <div class="font-bold text-gray-900 truncate" x-text="currentUser.name"></div>
+                      <div class="text-[11px] text-gray-500 truncate" x-text="currentUser.email"></div>
+                      <div class="mt-0.5">
+                        <span 
+                          class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full"
+                          :class="{
+                            'bg-indigo-50 text-indigo-700': isAdmin(),
+                            'bg-sky-50 text-sky-700': !isAdmin() && isManager(),
+                            'bg-emerald-50 text-emerald-700': !isAdmin() && !isManager() && isMember(),
+                            'bg-purple-50 text-purple-700': !isAdmin() && !isManager() && !isMember()
+                          }"
+                          x-text="'Role: ' + (isAdmin() ? 'ADMIN' : (currentUser.role || 'MEMBER').toUpperCase())"
+                        ></span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
                 <!-- Admin User Management Link -->
                 <div class="py-1" x-show="isAdmin()">
@@ -1843,38 +1868,54 @@ $sessionUser = $_SESSION['user'] ?? null;
         </div>
 
         <!-- Navigation Tabs -->
-        <div class="px-6 pt-3 border-b border-gray-200 flex gap-6 text-xs font-semibold">
+        <div class="px-6 pt-3 border-b border-gray-200 flex gap-6 text-xs font-semibold overflow-x-auto">
           <button 
             @click="userMgmtTab = 'users'" 
-            class="pb-2.5 flex items-center gap-1.5 border-b-2 transition-colors"
+            class="pb-2.5 flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap"
             :class="userMgmtTab === 'users' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-800'"
           >
-            <i data-lucide="user-check" class="w-4 h-4"></i>
-            <span>รายชื่อผู้ใช้งาน (<span x-text="userList.length"></span>)</span>
+            <i data-lucide="users" class="w-4 h-4"></i>
+            <span>ผู้ใช้งาน & กำหนดสิทธิ์ (<span x-text="userList.length"></span>)</span>
           </button>
           <button 
             @click="userMgmtTab = 'settings'" 
-            class="pb-2.5 flex items-center gap-1.5 border-b-2 transition-colors"
+            class="pb-2.5 flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap"
             :class="userMgmtTab === 'settings' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-800'"
           >
-            <i data-lucide="settings" class="w-4 h-4"></i>
-            <span>ตั้งค่า Google Sign-In</span>
+            <i data-lucide="shield" class="w-4 h-4"></i>
+            <span>ความปลอดภัย & Google Sign-In</span>
+          </button>
+          <button 
+            @click="userMgmtTab = 'board_structure'" 
+            class="pb-2.5 flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap"
+            :class="userMgmtTab === 'board_structure' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-800'"
+          >
+            <i data-lucide="layers" class="w-4 h-4"></i>
+            <span>โครงสร้างกลุ่มงาน (<span x-text="(board.groups || []).length"></span>)</span>
+          </button>
+          <button 
+            @click="userMgmtTab = 'maintenance'" 
+            class="pb-2.5 flex items-center gap-1.5 border-b-2 transition-colors whitespace-nowrap"
+            :class="userMgmtTab === 'maintenance' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-800'"
+          >
+            <i data-lucide="database" class="w-4 h-4"></i>
+            <span>สำรองข้อมูล & กู้คืนระบบ</span>
           </button>
         </div>
 
         <!-- Modal Body (Scrollable) -->
-        <div class="p-6 overflow-y-auto flex-1">
+        <div class="p-6 overflow-y-auto flex-1 space-y-6">
           
-          <!-- TAB 1: USERS LIST -->
+          <!-- TAB 1: USERS LIST & ROLES -->
           <div x-show="userMgmtTab === 'users'" class="space-y-4">
             <div class="flex items-center justify-between">
-              <div class="text-xs font-bold text-gray-700">รายชื่อผู้ใช้งานในระบบทั้งหมด:</div>
+              <div class="text-xs font-bold text-gray-700">รายชื่อผู้ใช้งานทั้งหมดและสิทธิ์เข้าถึง:</div>
               <button 
                 @click="fetchUserList()" 
                 class="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-semibold"
               >
                 <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-                <span>รีเฟรช</span>
+                <span>รีเฟรชรายชื่อ</span>
               </button>
             </div>
 
@@ -1888,6 +1929,7 @@ $sessionUser = $_SESSION['user'] ?? null;
                     <th class="py-2.5 px-4">บทบาท (Role)</th>
                     <th class="py-2.5 px-4 text-center">สถานะ</th>
                     <th class="py-2.5 px-4">ล็อกอินล่าสุด</th>
+                    <th class="py-2.5 px-4 text-center">จัดการ</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -1927,11 +1969,20 @@ $sessionUser = $_SESSION['user'] ?? null;
                         ></button>
                       </td>
                       <td class="py-2.5 px-4 text-[11px] text-gray-500" x-text="u.last_login ? u.last_login.substring(0, 16) : 'ยังไม่เคยล็อกอิน'"></td>
+                      <td class="py-2.5 px-4 text-center">
+                        <button 
+                          @click="deleteUser(u)" 
+                          class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          title="ลบผู้ใช้งานออกจากระบบ"
+                        >
+                          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                      </td>
                     </tr>
                   </template>
                   <template x-if="userList.length === 0">
                     <tr>
-                      <td colspan="5" class="py-8 text-center text-gray-400 text-xs">
+                      <td colspan="6" class="py-8 text-center text-gray-400 text-xs">
                         ยังไม่มีข้อมูลผู้ใช้งานในระบบ
                       </td>
                     </tr>
@@ -1941,14 +1992,14 @@ $sessionUser = $_SESSION['user'] ?? null;
             </div>
           </div>
 
-          <!-- TAB 2: GOOGLE SIGN-IN SETTINGS -->
+          <!-- TAB 2: GOOGLE SIGN-IN & SECURITY SETTINGS -->
           <div x-show="userMgmtTab === 'settings'" class="max-w-xl space-y-4">
             <div class="p-4 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 leading-relaxed">
               <strong>วิธีตั้งค่า Google OAuth 2.0:</strong>
               <ol class="list-decimal pl-4 mt-1.5 space-y-1 text-blue-800">
-                <li>ไปที่ <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="underline font-bold">Google Cloud Console</a> และสร้าง Project ใหม่</li>
-                <li>สร้าง <strong>OAuth 2.0 Client ID</strong> เลือก Application type เป็น <em>Web application</em></li>
-                <li>ระบุ Authorized JavaScript origins เป็น <code>https://www.nigiwaigroup.com</code> (หรือโดเมนของคุณ)</li>
+                <li>ไปที่ <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="underline font-bold">Google Cloud Console</a> และสร้าง Project</li>
+                <li>สร้าง <strong>OAuth 2.0 Client ID</strong> เลือก Web application</li>
+                <li>ระบุ Authorized JavaScript origins เป็น <code>https://www.nigiwaigroup.com</code></li>
                 <li>คัดลอก <strong>Client ID</strong> มาวางในช่องด้านล่าง แล้วกดบันทึก</li>
               </ol>
             </div>
@@ -1993,11 +2044,133 @@ $sessionUser = $_SESSION['user'] ?? null;
                   class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5"
                 >
                   <i data-lucide="save" class="w-3.5 h-3.5"></i>
-                  <span>บันทึกการตั้งค่า Google Sign-In</span>
+                  <span>บันทึกการตั้งค่าระบบ</span>
                 </button>
               </div>
             </div>
           </div>
+
+          <!-- TAB 3: BOARD STRUCTURE & GROUPS -->
+          <div x-show="userMgmtTab === 'board_structure'" class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-xs font-bold text-gray-800">โครงสร้างกลุ่มงาน (Groups / Project Phases)</h4>
+                <p class="text-[11px] text-gray-500">จัดการขั้นตอนการทำงานหลักของโครงการ Nigiwai PM</p>
+              </div>
+              <button 
+                @click="addNewGroup()" 
+                class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-2xs flex items-center gap-1.5 transition-colors"
+              >
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                <span>เพิ่มกลุ่มงานใหม่</span>
+              </button>
+            </div>
+
+            <div class="space-y-2.5">
+              <template x-for="(group, gIndex) in (board.groups || [])" :key="group.id">
+                <div class="p-3.5 border border-gray-200 rounded-xl bg-white shadow-2xs flex items-center justify-between gap-4">
+                  <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <input 
+                      type="color" 
+                      :value="group.color || '#579BFC'"
+                      @change="group.color = $event.target.value; autoSaveView();" 
+                      class="w-7 h-7 rounded-lg cursor-pointer border-0 p-0 bg-transparent shrink-0" 
+                      title="เลือกสีกราฟิกประจำกลุ่ม"
+                    />
+                    <input 
+                      type="text" 
+                      x-model="group.title"
+                      @blur="autoSaveView()" 
+                      class="font-bold text-xs text-gray-900 border border-transparent hover:border-gray-200 focus:border-blue-500 px-2 py-1 rounded-md outline-none flex-1"
+                    />
+                  </div>
+                  <div class="flex items-center gap-3 shrink-0 text-xs text-gray-500">
+                    <span><strong x-text="(group.items || []).length"></strong> รายการ</span>
+                    <button 
+                      @click="deleteGroup(group.id)" 
+                      class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="ลบกลุ่มงานนี้"
+                    >
+                      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- TAB 4: SYSTEM MAINTENANCE & BACKUP -->
+          <div x-show="userMgmtTab === 'maintenance'" class="space-y-6 max-w-2xl">
+            <!-- Backup & Export Section -->
+            <div class="p-4 border border-gray-200 rounded-xl bg-gray-50/50 space-y-3">
+              <div class="flex items-center gap-2 text-xs font-bold text-gray-800">
+                <i data-lucide="download-cloud" class="w-4 h-4 text-blue-600"></i>
+                <span>สำรองข้อมูลโครงการทั้งหมด (Full Backup)</span>
+              </div>
+              <p class="text-[11px] text-gray-500 leading-relaxed">
+                ส่งออกข้อมูลบอร์ด รายการงาน กลุ่มงาน ประวัติอัปเดต และการตั้งค่าทั้งหมดออกมาเป็นไฟล์ JSON สำรองไว้เพื่อความปลอดภัย
+              </p>
+              <div class="flex items-center gap-3 pt-1">
+                <button 
+                  @click="exportBoardJson()" 
+                  class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors"
+                >
+                  <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                  <span>ดาวน์โหลดสำรองข้อมูล (.json)</span>
+                </button>
+                <button 
+                  @click="exportToExcel()" 
+                  class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors"
+                >
+                  <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
+                  <span>ส่งออกเป็น Excel (.xlsx)</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Restore Section -->
+            <div class="p-4 border border-amber-200 bg-amber-50/30 rounded-xl space-y-3">
+              <div class="flex items-center gap-2 text-xs font-bold text-amber-900">
+                <i data-lucide="upload-cloud" class="w-4 h-4 text-amber-600"></i>
+                <span>กู้คืนข้อมูลโครงการจากไฟล์สำรอง (Restore from JSON)</span>
+              </div>
+              <p class="text-[11px] text-amber-800 leading-relaxed">
+                เลือกไฟล์ JSON สำรองเพื่อนำเข้าข้อมูลโครงการเดิมกลับคืนมา (ข้อมูลบอร์ดปัจจุบันจะถูกแทนที่ด้วยข้อมูลจากไฟล์สำรอง)
+              </p>
+              <div>
+                <label class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer transition-colors">
+                  <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                  <span>เลือกไฟล์ JSON เพื่อกู้คืน</span>
+                  <input type="file" accept=".json" @change="importBoardJson($event)" class="hidden" />
+                </label>
+              </div>
+            </div>
+
+            <!-- System Diagnostics -->
+            <div class="p-4 border border-gray-200 rounded-xl bg-white space-y-2">
+              <div class="text-xs font-bold text-gray-800 mb-2">สถานะระบบ (System Diagnostics):</div>
+              <div class="grid grid-cols-2 gap-3 text-xs">
+                <div class="p-2.5 bg-gray-50 rounded-lg">
+                  <span class="text-gray-400 block text-[10px] uppercase font-bold">โฮสต์ & ฐานข้อมูล</span>
+                  <span class="font-semibold text-gray-800">MySQL Database Connected</span>
+                </div>
+                <div class="p-2.5 bg-gray-50 rounded-lg">
+                  <span class="text-gray-400 block text-[10px] uppercase font-bold">จำนวนกลุ่มงาน</span>
+                  <span class="font-semibold text-gray-800" x-text="(board.groups || []).length + ' กลุ่มงาน'"></span>
+                </div>
+                <div class="p-2.5 bg-gray-50 rounded-lg">
+                  <span class="text-gray-400 block text-[10px] uppercase font-bold">จำนวนงานทั้งหมด</span>
+                  <span class="font-semibold text-gray-800" x-text="totalItemsCount + ' รายการ'"></span>
+                </div>
+                <div class="p-2.5 bg-gray-50 rounded-lg">
+                  <span class="text-gray-400 block text-[10px] uppercase font-bold">ผู้ดูแลสูงสุด</span>
+                  <span class="font-semibold text-indigo-700 font-bold">Kraijate Sompong 👑</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
 
         </div>
       </div>

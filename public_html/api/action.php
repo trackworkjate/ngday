@@ -148,6 +148,12 @@ try {
             $response = $auth->updateUserRole($userId, $newRole, $isActive);
             break;
 
+        case 'delete_user':
+            $userId = (int)($input['user_id'] ?? 0);
+            $auth = new AuthController();
+            $response = $auth->deleteUser($userId);
+            break;
+
         case 'save_auth_config':
             $config = (array)($input['config'] ?? $input);
             $auth = new AuthController();
