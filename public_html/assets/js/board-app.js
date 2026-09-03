@@ -748,12 +748,33 @@ document.addEventListener("alpine:init", () => {
     async sendApiAction(action, payload = {}) {
       try {
         const body = { action: action, ...payload };
-        const res = await fetch("api/action.php", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body)
-        });
-        if (res.ok) {
+        let res = null;
+
+        // Try 1: api/action.php
+        try {
+          res = await fetch("api/action.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+          });
+        } catch (e) {
+          // ignore
+        }
+
+        // Try 2: Root action.php (Fail-Safe Fallback)
+        if (!res || !res.ok) {
+          try {
+            res = await fetch("action.php", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body)
+            });
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        if (res && res.ok) {
           const data = await res.json();
           return data;
         }
