@@ -291,14 +291,20 @@ document.addEventListener("alpine:init", () => {
     async handleGoogleCredentialResponse(response) {
       if (!response || !response.credential) return;
       this.isAuthLoading = true;
-      const res = await this.sendApiAction("google_login", { credential: response.credential });
-      this.isAuthLoading = false;
-      if (res && res.success && res.user) {
-        this.currentUser = res.user;
-        this.showLoginModal = false;
-        this.showToast(`✅ ยินดีต้อนรับคุณ ${res.user.name} (${res.user.role.toUpperCase()})`);
-      } else {
-        alert(res?.error || "เข้าสู่ระบบด้วย Google ไม่สำเร็จ");
+      try {
+        const res = await this.sendApiAction("google_login", { credential: response.credential });
+        this.isAuthLoading = false;
+        if (res && res.success && res.user) {
+          this.currentUser = res.user;
+          this.showLoginModal = false;
+          this.showToast(`✅ ยินดีต้อนรับคุณ ${res.user.name} (${res.user.role.toUpperCase()})`);
+        } else {
+          const msg = res?.error || (res ? "เกิดข้อผิดพลาดในการตรวจสอบบัญชี" : "ไม่สามารถเชื่อมต่อกับ Server api/action.php ได้ โปรดตรวจสอบว่าอัปโหลดไฟล์ AuthController.php ล่าสุดแล้ว");
+          alert(msg);
+        }
+      } catch (err) {
+        this.isAuthLoading = false;
+        alert("ข้อผิดพลาด: " + (err.message || err));
       }
       this.$nextTick(() => {
         if (typeof lucide !== "undefined") lucide.createIcons();
