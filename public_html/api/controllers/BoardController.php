@@ -151,7 +151,7 @@ class BoardController {
 
         if ($this->pdo) {
             try {
-                $stmt = $this->pdo->prepare('INSERT INTO board_columns (id, board_id, title, type, is_subitem, position, settings) VALUES (:id, :bid, :title, :type, :is_sub, :pos, '{}')');
+                $stmt = $this->pdo->prepare("INSERT INTO board_columns (id, board_id, title, type, is_subitem, position, settings) VALUES (:id, :bid, :title, :type, :is_sub, :pos, '{}')");
                 $stmt->execute([
                     ':id' => $colId,
                     ':bid' => $boardId,
