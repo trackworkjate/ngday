@@ -913,38 +913,140 @@ document.addEventListener("alpine:init", () => {
       return { item: null, parent: null, isSubitem: false };
     },
 
-    // Rich resolver that pulls the true latest updater from item updates history or column value
+    parseUpdateTimestamp(dateStr) {
+      if (!dateStr) return 0;
+      if (typeof dateStr === 'number') return dateStr;
+      const s = String(dateStr).trim();
+      if (/^\d{12,14}$/.test(s)) return Number(s);
+      
+      const normalized = s.replace(/\//g, ' ');
+      const t = Date.parse(normalized);
+      if (!isNaN(t)) return t;
+
+      const thaiMonths = {
+        'ม.ค.': 0, 'ก.พ.': 1, 'มี.ค.': 2, 'เม.ย.': 3, 'พ.ค.': 4, 'มิ.ย.': 5,
+        'ก.ค.': 6, 'ส.ค.': 7, 'ก.ย.': 8, 'ต.ค.': 9, 'พ.ย.': 10, 'ธ.ค.': 11
+      };
+      for (const [tm, mIdx] of Object.entries(thaiMonths)) {
+        if (s.includes(tm)) {
+          return Date.now();
+        }
+      }
+      return 0;
+    },
+
+    getUpdateAvatar(update) {
+      if (!update) return '';
+      if (update.user_avatar || update.avatar) return update.user_avatar || update.avatar;
+      const name = String(update.user_name || '');
+      if (name.includes("Jate") || name.includes("Kraijate") || name.includes("krajjate") || name.includes("CTO")) {
+        return localStorage.getItem("ng_google_avatar") || (this.currentUser ? this.currentUser.avatar : '');
+      }
+      return '';
+    },
+
+    getUpdateName(update) {
+      if (!update) return 'ผู้ใช้งานระบบ';
+      const name = String(update.user_name || 'ผู้ใช้งานระบบ');
+      if (name.includes("Jate") || name.includes("Kraijate") || name.includes("krajjate") || name.includes("CTO")) {
+        return "Kraijate Sompong";
+      }
+      return name;
+    },
+
+    // Rich resolver that calculates the true latest updater across Main Task & Subtasks
     getItemLastUpdate(item, colId = null) {
       if (!item) return { name: '-', time: '', avatar: '', initials: '-' };
       const isSub = (colId === 'sub_col_10') || (item.column_values && 'sub_col_10' in item.column_values) || this.findItemAndParent(item.id).isSubitem;
       const targetColId = colId || (isSub ? 'sub_col_10' : 'col_17');
 
-      // 1. If item has updates history, pull the author and date of the latest update!
-      if (item.updates && item.updates.length > 0) {
-        const up = item.updates[0];
-        if (up && (up.user_name || up.created_at)) {
-          let author = String(up.user_name || 'ผู้ใช้งาน').trim();
-          let av = up.user_avatar || '';
+      const candidates = [];
+
+      const checkColValue = (raw) => {
+        if (!raw) return;
+        if (typeof raw === 'string' && raw.trim().startsWith('{')) {
+          try {
+            const p = JSON.parse(raw);
+            if (p.name && p.name !== '-') {
+              let name = p.name;
+              let av = p.avatar || '';
+              if (name.includes("Jate") || name.includes("Kraijate") || name.includes("krajjate") || name.includes("CTO")) {
+                name = "Kraijate Sompong";
+                if (!av) av = localStorage.getItem("ng_google_avatar") || "";
+              }
+              candidates.push({
+                name: name,
+                time: p.time || '',
+                avatar: av,
+                initials: name.substring(0, 2).toUpperCase(),
+                ts: p.timestamp || (p.time ? this.parseUpdateTimestamp(p.time) : Date.now())
+              });
+            }
+          } catch(e) {}
+        } else {
+          const parsed = this.parseLastUpdateInfo(raw);
+          if (parsed && parsed.name && parsed.name !== '-') {
+            candidates.push({
+              name: parsed.name,
+              time: parsed.time,
+              avatar: parsed.avatar,
+              initials: parsed.initials,
+              ts: parsed.time ? this.parseUpdateTimestamp(parsed.time) : 1
+            });
+          }
+        }
+      };
+
+      const checkUpdatesArray = (updatesArr) => {
+        if (!Array.isArray(updatesArr)) return;
+        for (const up of updatesArr) {
+          if (!up) continue;
+          let author = String(up.user_name || '').trim();
+          if (!author) continue;
+          let av = up.user_avatar || up.avatar || '';
           if (author.includes("Jate") || author.includes("Kraijate") || author.includes("krajjate") || author.includes("CTO")) {
             author = "Kraijate Sompong";
             if (!av) av = localStorage.getItem("ng_google_avatar") || "";
           }
-          return {
+          const upTimeStr = up.created_at || '';
+          candidates.push({
             name: author,
-            time: up.created_at || '',
+            time: upTimeStr,
             avatar: av,
-            initials: author.substring(0, 2).toUpperCase()
-          };
+            initials: author.substring(0, 2).toUpperCase(),
+            ts: this.parseUpdateTimestamp(upTimeStr)
+          });
+        }
+      };
+
+      // 1. Check item itself
+      checkColValue(item.column_values ? item.column_values[targetColId] : null);
+      checkUpdatesArray(item.updates);
+
+      // 2. If it's a MAIN task, ALSO check all its subitems to show the true latest update of this task!
+      if (!isSub && item.subitems && item.subitems.length > 0) {
+        for (const sub of item.subitems) {
+          checkColValue(sub.column_values ? sub.column_values['sub_col_10'] : null);
+          checkUpdatesArray(sub.updates);
         }
       }
 
-      // 2. Check value in column_values
-      const rawVal = item.column_values ? item.column_values[targetColId] : null;
-      if (rawVal) {
-        return this.parseLastUpdateInfo(rawVal);
+      if (candidates.length === 0) {
+        return { name: '-', time: '', avatar: '', initials: '-' };
       }
 
-      return { name: '-', time: '', avatar: '', initials: '-' };
+      // Sort descending by timestamp
+      candidates.sort((a, b) => b.ts - a.ts);
+
+      // Prioritize real active members over legacy placeholders
+      const nonLegacy = candidates.filter(c => c.name !== 'PP IT' && c.name !== '-');
+      if (nonLegacy.length > 0) {
+        if (candidates[0].name === 'PP IT') {
+          return nonLegacy[0];
+        }
+      }
+
+      return candidates[0];
     },
 
     // Parse Last Updated column value (supporting rich JSON or legacy Monday string)
@@ -1357,7 +1459,7 @@ document.addEventListener("alpine:init", () => {
 
       try {
         const res = await this.sendApiAction("get_updates", { item_id: item.id });
-        if (res && res.success && res.updates) {
+        if (res && res.success && res.updates && res.updates.length > 0) {
           this.itemUpdates = res.updates;
           this.activeItemForUpdates.update_count = res.updates.length;
           this.activeItemForUpdates.updates = res.updates;

@@ -1676,13 +1676,13 @@ if ($sessionUser) {
               <div class="bg-white rounded-lg p-4 border border-gray-200 shadow-2xs space-y-2 hover:border-gray-300 transition-colors">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-2">
-                    <template x-if="update.user_avatar || update.avatar">
-                      <img :src="update.user_avatar || update.avatar" class="w-7 h-7 rounded-full object-cover shadow-xs border border-gray-200" :alt="update.user_name" />
+                    <template x-if="getUpdateAvatar(update)">
+                      <img :src="getUpdateAvatar(update)" class="w-7 h-7 rounded-full object-cover shadow-xs border border-gray-200" :alt="getUpdateName(update)" />
                     </template>
-                    <template x-if="!(update.user_avatar || update.avatar)">
-                      <div class="w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shadow-xs" x-text="update.user_name ? update.user_name.substring(0, 2).toUpperCase() : 'US'"></div>
+                    <template x-if="!getUpdateAvatar(update)">
+                      <div class="w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shadow-xs" x-text="getUpdateName(update).substring(0, 2).toUpperCase()"></div>
                     </template>
-                    <span class="text-xs font-bold text-gray-800" x-text="update.user_name || 'ผู้ใช้งานระบบ'"></span>
+                    <span class="text-xs font-bold text-gray-800" x-text="getUpdateName(update)"></span>
                   </div>
                   <div class="flex items-center gap-2">
                     <span class="text-[10px] text-gray-400" x-text="update.created_at || 'Recently'"></span>

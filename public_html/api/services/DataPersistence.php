@@ -192,4 +192,143 @@ class DataPersistence {
 
         return self::saveBoardJson($data);
     }
+
+    public static function getUpdatesFromJson($itemId): array {
+        $data = self::loadBoardJson();
+        $strItemId = (string)$itemId;
+
+        foreach ($data['groups'] as $group) {
+            foreach ($group['items'] as $item) {
+                if ((string)$item['id'] === $strItemId || (string)($item['monday_item_id'] ?? '') === $strItemId) {
+                    return $item['updates'] ?? [];
+                }
+                if (!empty($item['subitems']) && is_array($item['subitems'])) {
+                    foreach ($item['subitems'] as $sub) {
+                        if ((string)$sub['id'] === $strItemId || (string)($sub['monday_item_id'] ?? '') === $strItemId) {
+                            return $sub['updates'] ?? [];
+                        }
+                    }
+                }
+            }
+        }
+        return [];
+    }
+
+    public static function addUpdateToJson($itemId, array $update): bool {
+        $data = self::loadBoardJson();
+        $strItemId = (string)$itemId;
+        $updated = false;
+
+        foreach ($data['groups'] as &$group) {
+            foreach ($group['items'] as &$item) {
+                if ((string)$item['id'] === $strItemId || (string)($item['monday_item_id'] ?? '') === $strItemId) {
+                    if (!isset($item['updates']) || !is_array($item['updates'])) {
+                        $item['updates'] = [];
+                    }
+                    array_unshift($item['updates'], $update);
+                    $item['update_count'] = count($item['updates']);
+                    $updated = true;
+                    break 2;
+                }
+                if (!empty($item['subitems']) && is_array($item['subitems'])) {
+                    foreach ($item['subitems'] as &$sub) {
+                        if ((string)$sub['id'] === $strItemId || (string)($sub['monday_item_id'] ?? '') === $strItemId) {
+                            if (!isset($sub['updates']) || !is_array($sub['updates'])) {
+                                $sub['updates'] = [];
+                            }
+                            array_unshift($sub['updates'], $update);
+                            $sub['update_count'] = count($sub['updates']);
+                            $updated = true;
+                            break 3;
+                        }
+                    }
+                }
+            }
+        }
+
+        if ($updated) {
+            return self::saveBoardJson($data);
+        }
+        return false;
+    }
+
+    public static function editUpdateInJson($updateId, string $content): bool {
+        $data = self::loadBoardJson();
+        $strUpId = (string)$updateId;
+        $updated = false;
+
+        foreach ($data['groups'] as &$group) {
+            foreach ($group['items'] as &$item) {
+                if (!empty($item['updates']) && is_array($item['updates'])) {
+                    foreach ($item['updates'] as &$up) {
+                        if ((string)($up['id'] ?? '') === $strUpId || (string)($up['monday_post_id'] ?? '') === $strUpId) {
+                            $up['content'] = $content;
+                            $updated = true;
+                            break 3;
+                        }
+                    }
+                }
+                if (!empty($item['subitems']) && is_array($item['subitems'])) {
+                    foreach ($item['subitems'] as &$sub) {
+                        if (!empty($sub['updates']) && is_array($sub['updates'])) {
+                            foreach ($sub['updates'] as &$up) {
+                                if ((string)($up['id'] ?? '') === $strUpId || (string)($up['monday_post_id'] ?? '') === $strUpId) {
+                                    $up['content'] = $content;
+                                    $updated = true;
+                                    break 4;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if ($updated) {
+            return self::saveBoardJson($data);
+        }
+        return false;
+    }
+
+    public static function deleteUpdateInJson($updateId): bool {
+        $data = self::loadBoardJson();
+        $strUpId = (string)$updateId;
+        $updated = false;
+
+        foreach ($data['groups'] as &$group) {
+            foreach ($group['items'] as &$item) {
+                if (!empty($item['updates']) && is_array($item['updates'])) {
+                    $origCount = count($item['updates']);
+                    $item['updates'] = array_values(array_filter($item['updates'], function($up) use ($strUpId) {
+                        return (string)($up['id'] ?? '') !== $strUpId && (string)($up['monday_post_id'] ?? '') !== $strUpId;
+                    }));
+                    if (count($item['updates']) !== $origCount) {
+                        $item['update_count'] = count($item['updates']);
+                        $updated = true;
+                        break 2;
+                    }
+                }
+                if (!empty($item['subitems']) && is_array($item['subitems'])) {
+                    foreach ($item['subitems'] as &$sub) {
+                        if (!empty($sub['updates']) && is_array($sub['updates'])) {
+                            $origCount = count($sub['updates']);
+                            $sub['updates'] = array_values(array_filter($sub['updates'], function($up) use ($strUpId) {
+                                return (string)($up['id'] ?? '') !== $strUpId && (string)($up['monday_post_id'] ?? '') !== $strUpId;
+                            }));
+                            if (count($sub['updates']) !== $origCount) {
+                                $sub['update_count'] = count($sub['updates']);
+                                $updated = true;
+                                break 3;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if ($updated) {
+            return self::saveBoardJson($data);
+        }
+        return false;
+    }
 }

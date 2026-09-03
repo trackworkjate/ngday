@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../services/DataPersistence.php';
 
 class UpdateController {
     private ?PDO $pdo = null;
@@ -23,6 +24,7 @@ class UpdateController {
     }
 
     public function getUpdates(int $itemId): array {
+        $updates = [];
         if ($this->pdo) {
             try {
                 $stmt = $this->pdo->prepare("
@@ -34,19 +36,32 @@ class UpdateController {
                 ");
                 $stmt->execute([':item_id' => $itemId]);
                 $updates = $stmt->fetchAll();
-
-                return [
-                    'success' => true,
-                    'item_id' => $itemId,
-                    'updates' => $updates
-                ];
             } catch (Throwable $e) {}
+        }
+
+        // Also get from board_data.json
+        $jsonUpdates = DataPersistence::getUpdatesFromJson($itemId);
+
+        // If MySQL has updates, merge non-duplicate JSON updates
+        if (!empty($updates)) {
+            $seen = [];
+            foreach ($updates as $u) {
+                $seen[trim((string)($u['content'] ?? ''))] = true;
+            }
+            foreach ($jsonUpdates as $ju) {
+                $c = trim((string)($ju['content'] ?? ''));
+                if (!isset($seen[$c])) {
+                    $updates[] = $ju;
+                }
+            }
+        } else {
+            $updates = $jsonUpdates;
         }
 
         return [
             'success' => true,
             'item_id' => $itemId,
-            'updates' => []
+            'updates' => $updates
         ];
     }
 
@@ -92,17 +107,20 @@ class UpdateController {
             }
         }
 
+        $newUpdate = [
+            'id' => $updateId,
+            'item_id' => $itemId,
+            'user_name' => $userName,
+            'user_avatar' => $userAvatar,
+            'content' => $content,
+            'likes_count' => 0,
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+        DataPersistence::addUpdateToJson($itemId, $newUpdate);
+
         return [
             'success' => true,
-            'update' => [
-                'id' => $updateId,
-                'item_id' => $itemId,
-                'user_name' => $userName,
-                'user_avatar' => $userAvatar,
-                'content' => $content,
-                'likes_count' => 0,
-                'created_at' => date('Y-m-d H:i:s')
-            ]
+            'update' => $newUpdate
         ];
     }
 
@@ -119,6 +137,7 @@ class UpdateController {
                 $stmt->execute([':content' => $content, ':id' => $updateId]);
             } catch (Throwable $e) {}
         }
+        DataPersistence::editUpdateInJson($updateId, $content);
 
         return [
             'success' => true,
@@ -135,6 +154,7 @@ class UpdateController {
                 $stmt->execute([':id' => $updateId]);
             } catch (Throwable $e) {}
         }
+        DataPersistence::deleteUpdateInJson($updateId);
 
         return [
             'success' => true,
