@@ -15,6 +15,11 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS
 require_once __DIR__ . '/services/DataPersistence.php';
 require_once __DIR__ . '/controllers/BoardController.php';
 require_once __DIR__ . '/controllers/ItemController.php';
+require_once __DIR__ . '/controllers/AuthController.php';
+
+if (session_status() === PHP_SESSION_NONE) {
+    @session_start();
+}
 
 // Parse Request Body & Parameters
 $input = [];
@@ -34,10 +39,78 @@ if (!empty($_GET)) {
 
 $action = $input['action'] ?? $_GET['action'] ?? '';
 
+// RBAC Role-Based Permissions Guard
+$currentUser = $_SESSION['user'] ?? null;
+$userRole = $currentUser['role'] ?? null;
+
+// Viewer is strictly read-only for board modifications
+$modifyingActions = ['update_cell', 'update_name', 'delete_item', 'delete_column', 'create_column', 'update_group_timeline', 'save_board'];
+if ($userRole === 'viewer' && in_array($action, $modifyingActions, true)) {
+    echo json_encode([
+        'success' => false,
+        'error' => 'สิทธิ์ผู้เข้าชม (Viewer) สามารถดูข้อมูลได้อย่างเดียว ไม่สามารถแก้ไขหรือลบข้อมูลได้'
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// Member cannot delete or add structure columns
+if ($userRole === 'member' && in_array($action, ['delete_column', 'create_column'], true)) {
+    echo json_encode([
+        'success' => false,
+        'error' => 'สิทธิ์พนักงาน (Member) ไม่สามารถเพิ่มหรือลบคอลัมน์ได้ กรุณาติดต่อ Manager หรือ Admin'
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 try {
     $response = ['success' => false, 'error' => 'Invalid action'];
 
     switch ($action) {
+        // --- AUTHENTICATION & USER MANAGEMENT ACTIONS ---
+        case 'get_current_user':
+            $auth = new AuthController();
+            $response = $auth->getCurrentUser();
+            break;
+
+        case 'google_login':
+            $credential = (string)($input['credential'] ?? '');
+            $auth = new AuthController();
+            $response = $auth->googleLogin($credential);
+            break;
+
+        case 'mock_login':
+            $role = (string)($input['role'] ?? 'member');
+            $name = isset($input['name']) ? (string)$input['name'] : null;
+            $email = isset($input['email']) ? (string)$input['email'] : null;
+            $auth = new AuthController();
+            $response = $auth->mockLogin($role, $name, $email);
+            break;
+
+        case 'logout':
+            $auth = new AuthController();
+            $response = $auth->logout();
+            break;
+
+        case 'list_users':
+            $auth = new AuthController();
+            $response = $auth->listUsers();
+            break;
+
+        case 'update_user_role':
+            $userId = (int)($input['user_id'] ?? 0);
+            $newRole = (string)($input['role'] ?? '');
+            $isActive = isset($input['is_active']) ? (int)$input['is_active'] : null;
+            $auth = new AuthController();
+            $response = $auth->updateUserRole($userId, $newRole, $isActive);
+            break;
+
+        case 'save_auth_config':
+            $config = (array)($input['config'] ?? $input);
+            $auth = new AuthController();
+            $response = $auth->saveAuthConfig($config);
+            break;
+
+        // --- BOARD & ITEM ACTIONS ---
         case 'update_cell':
             $itemId = $input['item_id'] ?? '';
             $colId = $input['column_id'] ?? '';

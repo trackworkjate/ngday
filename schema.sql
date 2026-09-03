@@ -94,3 +94,31 @@ CREATE TABLE `item_updates` (
     INDEX `idx_item_updates` (`item_id`, `created_at`),
     INDEX `idx_monday_post` (`monday_post_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------------
+-- 6. Users & Roles Table (Authentication & RBAC)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `users` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `google_id` VARCHAR(100) NULL UNIQUE,
+    `email` VARCHAR(191) NOT NULL UNIQUE,
+    `name` VARCHAR(255) NOT NULL,
+    `avatar` VARCHAR(500) NULL,
+    `role` ENUM('admin', 'manager', 'member', 'viewer') NOT NULL DEFAULT 'member',
+    `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+    `last_login` DATETIME NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX `idx_user_email` (`email`),
+    INDEX `idx_user_role` (`role`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------------
+-- 7. Auth & System Settings Table
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `system_settings` (
+    `setting_key` VARCHAR(64) PRIMARY KEY,
+    `setting_value` TEXT NULL,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

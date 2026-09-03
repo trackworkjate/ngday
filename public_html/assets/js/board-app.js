@@ -134,6 +134,51 @@ document.addEventListener("alpine:init", () => {
     isSavingView: false,
     toastMessage: "",
 
+    // User Authentication & Roles (RBAC)
+    currentUser: null,
+    authConfig: {
+      google_client_id: "",
+      allowed_domain: "",
+      default_role: "member",
+      mock_mode_enabled: true
+    },
+    isAuthLoading: false,
+    showLoginModal: false,
+    showUserManagementModal: false,
+    userDropdownOpen: false,
+    userList: [],
+    authSettingsForm: {
+      google_client_id: "",
+      allowed_domain: "",
+      default_role: "member"
+    },
+
+    // RBAC Permission Helpers
+    isLoggedIn() {
+      return Boolean(this.currentUser && this.currentUser.id);
+    },
+    isAdmin() {
+      return Boolean(this.currentUser && this.currentUser.role === "admin");
+    },
+    isManager() {
+      return Boolean(this.currentUser && (this.currentUser.role === "manager" || this.currentUser.role === "admin"));
+    },
+    isMember() {
+      return Boolean(this.currentUser && (this.currentUser.role === "member" || this.currentUser.role === "manager" || this.currentUser.role === "admin"));
+    },
+    isViewer() {
+      return Boolean(this.currentUser && this.currentUser.role === "viewer");
+    },
+    canEditTasks() {
+      return !this.isViewer();
+    },
+    canManageColumns() {
+      return !this.isLoggedIn() || this.isAdmin();
+    },
+    canManageTimeline() {
+      return !this.isViewer();
+    },
+
     // 100% Fail-Safe LocalStorage Persistence Engine
     persistToLocalStorage() {
       try {
@@ -173,10 +218,13 @@ document.addEventListener("alpine:init", () => {
     },
 
     async init() {
-      // 1. Try loading from LocalStorage FIRST (Guarantees user customized view and edits never revert)
+      // 1. Check Authentication Session & Google Client ID
+      await this.checkAuthSession();
+
+      // 2. Try loading from LocalStorage FIRST (Guarantees user customized view and edits never revert)
       const hasLocal = this.loadFromLocalStorage();
 
-      // 2. If no LocalStorage, load from pre-rendered server data
+      // 3. If no LocalStorage, load from pre-rendered server data
       if (!hasLocal && window.INITIAL_BOARD_DATA && window.INITIAL_BOARD_DATA.groups && window.INITIAL_BOARD_DATA.groups.length > 0) {
         const d = window.INITIAL_BOARD_DATA;
         this.board = d.board || this.board;
@@ -190,6 +238,146 @@ document.addEventListener("alpine:init", () => {
       this.$nextTick(() => {
         if (typeof lucide !== "undefined") lucide.createIcons();
       });
+    },
+
+    // --- Authentication & User Management Methods ---
+    async checkAuthSession() {
+      this.isAuthLoading = true;
+      try {
+        const res = await this.sendApiAction("get_current_user");
+        if (res && res.success) {
+          this.currentUser = res.user || null;
+          if (res.config) {
+            this.authConfig = res.config;
+            this.authSettingsForm = { ...res.config };
+          }
+        }
+      } catch (e) {
+        console.warn("Auth check failed:", e);
+      } finally {
+        this.isAuthLoading = false;
+        this.$nextTick(() => {
+          this.initGoogleSignIn();
+        });
+      }
+    },
+
+    initGoogleSignIn() {
+      if (!this.authConfig || !this.authConfig.google_client_id) return;
+      if (typeof google === "undefined" || !google.accounts || !google.accounts.id) {
+        setTimeout(() => this.initGoogleSignIn(), 600);
+        return;
+      }
+      try {
+        google.accounts.id.initialize({
+          client_id: this.authConfig.google_client_id,
+          callback: this.handleGoogleCredentialResponse.bind(this)
+        });
+        const modalBtn = document.getElementById("google-modal-signin-btn");
+        if (modalBtn) {
+          google.accounts.id.renderButton(modalBtn, {
+            theme: "filled_blue",
+            size: "large",
+            text: "continue_with",
+            shape: "pill",
+            width: 280
+          });
+        }
+      } catch (e) {
+        console.warn("Google Sign-In initialization warning:", e);
+      }
+    },
+
+    async handleGoogleCredentialResponse(response) {
+      if (!response || !response.credential) return;
+      this.isAuthLoading = true;
+      const res = await this.sendApiAction("google_login", { credential: response.credential });
+      this.isAuthLoading = false;
+      if (res && res.success && res.user) {
+        this.currentUser = res.user;
+        this.showLoginModal = false;
+        this.showToast(`✅ ยินดีต้อนรับคุณ ${res.user.name} (${res.user.role.toUpperCase()})`);
+      } else {
+        alert(res?.error || "เข้าสู่ระบบด้วย Google ไม่สำเร็จ");
+      }
+      this.$nextTick(() => {
+        if (typeof lucide !== "undefined") lucide.createIcons();
+      });
+    },
+
+    async mockLoginAs(role) {
+      this.isAuthLoading = true;
+      const res = await this.sendApiAction("mock_login", { role: role });
+      this.isAuthLoading = false;
+      if (res && res.success && res.user) {
+        this.currentUser = res.user;
+        this.showLoginModal = false;
+        this.userDropdownOpen = false;
+        this.showToast(`✅ สลับเข้าใช้งานในฐานะ: ${res.user.role.toUpperCase()}`);
+      }
+      this.$nextTick(() => {
+        if (typeof lucide !== "undefined") lucide.createIcons();
+      });
+    },
+
+    async logout() {
+      await this.sendApiAction("logout");
+      this.currentUser = null;
+      this.userDropdownOpen = false;
+      this.showToast("ออกจากระบบเรียบร้อยแล้ว");
+      this.$nextTick(() => {
+        if (typeof lucide !== "undefined") lucide.createIcons();
+      });
+    },
+
+    async openUserManagementModal() {
+      if (!this.isAdmin()) return;
+      this.userDropdownOpen = false;
+      this.showUserManagementModal = true;
+      await this.fetchUserList();
+      this.$nextTick(() => {
+        if (typeof lucide !== "undefined") lucide.createIcons();
+      });
+    },
+
+    async fetchUserList() {
+      const res = await this.sendApiAction("list_users");
+      if (res && res.success) {
+        this.userList = res.users || [];
+      }
+    },
+
+    async changeUserRole(u, newRole) {
+      const res = await this.sendApiAction("update_user_role", { user_id: u.id, role: newRole });
+      if (res && res.success) {
+        u.role = newRole;
+        if (this.currentUser && this.currentUser.id === u.id) {
+          this.currentUser.role = newRole;
+        }
+        this.showToast(`✅ อัปเดตสิทธิ์ของ ${u.name} เป็น ${newRole.toUpperCase()} สำเร็จ`);
+      } else {
+        alert(res?.error || "เกิดข้อผิดพลาดในการเปลี่ยนสิทธิ์");
+      }
+    },
+
+    async toggleUserStatus(u) {
+      const newStatus = u.is_active ? 0 : 1;
+      const res = await this.sendApiAction("update_user_role", { user_id: u.id, role: u.role, is_active: newStatus });
+      if (res && res.success) {
+        u.is_active = newStatus;
+        this.showToast(`✅ ปรับสถานะผู้ใช้ ${u.name} สำเร็จ`);
+      }
+    },
+
+    async saveAuthSettings() {
+      const res = await this.sendApiAction("save_auth_config", { config: this.authSettingsForm });
+      if (res && res.success) {
+        this.authConfig = res.config;
+        this.initGoogleSignIn();
+        this.showToast("✅ บันทึกการตั้งค่า Google Sign-In เรียบร้อย");
+      } else {
+        alert(res?.error || "บันทึกการตั้งค่าไม่สำเร็จ");
+      }
     },
 
     showToast(msg) {
@@ -571,6 +759,10 @@ document.addEventListener("alpine:init", () => {
 
     // Cell Mutations with Optimistic UI Update and Permanent Persistence
     async updateCell(item, colId, value) {
+      if (this.isViewer()) {
+        this.showToast("⚠️ สิทธิ์ Viewer สามารถดูได้อย่างเดียว");
+        return;
+      }
       if (!item.column_values) item.column_values = {};
       item.column_values[colId] = value;
       this.activeStatusPopover = null;
@@ -584,6 +776,10 @@ document.addEventListener("alpine:init", () => {
     },
 
     async updateItemName(item, newName) {
+      if (this.isViewer()) {
+        this.showToast("⚠️ สิทธิ์ Viewer สามารถดูได้อย่างเดียว");
+        return;
+      }
       newName = newName.trim();
       if (!newName || newName === item.name) return;
       item.name = newName;
@@ -597,6 +793,10 @@ document.addEventListener("alpine:init", () => {
 
     // Create New Item
     async createItem(group, parentId = null) {
+      if (this.isViewer()) {
+        this.showToast("⚠️ สิทธิ์ Viewer ไม่สามารถเพิ่มงานได้");
+        return;
+      }
       const name = parentId ? "New Subtask" : "New Item";
       const newItem = {
         id: "temp_" + Date.now(),
@@ -685,6 +885,10 @@ document.addEventListener("alpine:init", () => {
     },
 
     async deleteSelectedItems() {
+      if (!this.canEditTasks()) {
+        this.showToast("⚠️ สิทธิ์ของคุณไม่สามารถลบรายการได้");
+        return;
+      }
       if (this.selectedItemIds.length === 0) return;
       const count = this.selectedItemIds.length;
       if (!confirm(`คุณต้องการลบ ${count} รายการที่เลือกหรือไม่?`)) return;
@@ -715,6 +919,10 @@ document.addEventListener("alpine:init", () => {
 
     // Column Management Methods
     openAddColumnModal() {
+      if (!this.canManageColumns()) {
+        alert("เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถเพิ่มหรือจัดการคอลัมน์ได้");
+        return;
+      }
       this.showColumnModal = true;
       this.newColumnTitle = "";
       this.newColumnType = "text";
@@ -724,6 +932,10 @@ document.addEventListener("alpine:init", () => {
     },
 
     async createColumn() {
+      if (!this.canManageColumns()) {
+        alert("เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถเพิ่มคอลัมน์ได้");
+        return;
+      }
       if (!this.newColumnTitle.trim() || this.isSubmittingColumn) return;
       this.isSubmittingColumn = true;
 
@@ -762,6 +974,10 @@ document.addEventListener("alpine:init", () => {
     },
 
     async deleteColumn(col) {
+      if (!this.canManageColumns()) {
+        alert("เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถลบคอลัมน์ได้");
+        return;
+      }
       if (!confirm(`คุณต้องการลบคอลัมน์ "${col.title}" และข้อมูลในคอลัมน์นี้ทั้งหมดหรือไม่?`)) return;
 
       const colId = col.id;
@@ -786,6 +1002,10 @@ document.addEventListener("alpine:init", () => {
 
     // Delete Single Item
     async deleteItem(group, item, parentItem = null) {
+      if (!this.canEditTasks()) {
+        this.showToast("⚠️ สิทธิ์ของคุณไม่สามารถลบงานได้");
+        return;
+      }
       if (!confirm(`คุณต้องการลบ "${item.name}" หรือไม่?`)) return;
 
       if (parentItem) {
