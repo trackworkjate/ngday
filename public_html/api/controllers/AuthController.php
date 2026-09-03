@@ -33,6 +33,16 @@ class AuthController {
         ];
     }
 
+    public static function isOwnerEmail(string $email): bool {
+        $em = strtolower(trim($email));
+        return (
+            strpos($em, 'kraijate') !== false ||
+            strpos($em, 'krajjate') !== false ||
+            strpos($em, 'jate') !== false ||
+            strpos($em, 'admin@nigiwai') !== false
+        );
+    }
+
     public static function saveConfig(array $newConfig): bool {
         $current = self::getConfig();
         $updated = [
@@ -132,12 +142,12 @@ class AuthController {
 
             // Always permanently enforce Admin role for the owner emails
             $userEmail = strtolower(trim((string)($user['email'] ?? '')));
-            if (strpos($userEmail, 'krajjate') !== false || in_array($userEmail, $adminEmails, true)) {
+            if (self::isOwnerEmail($userEmail)) {
                 $user['role'] = 'admin';
                 $user['name'] = 'Kraijate Sompong';
                 if ($pdo) {
                     try {
-                        $pdo->prepare("UPDATE users SET role = 'admin', name = 'Kraijate Sompong' WHERE email LIKE '%krajjate%' OR email = ?")->execute([$userEmail]);
+                        $pdo->prepare("UPDATE users SET role = 'admin', name = 'Kraijate Sompong' WHERE email LIKE '%jate%' OR email = ?")->execute([$userEmail]);
                     } catch (Throwable $e) {}
                 }
             }
@@ -211,10 +221,9 @@ class AuthController {
         $name = trim((string)($payload['name'] ?? $email));
 
         // Owner/Admin special recognition
-        $adminEmails = ['krajjateios@gmail.com', 'krajjateics@gmail.com', 'admin@nigiwaigroup.com'];
-        $isRecognizedAdmin = in_array($email, $adminEmails, true);
+        $isRecognizedAdmin = self::isOwnerEmail($email);
 
-        if ($isRecognizedAdmin && ($name === 'Kraijate' || empty($name) || $name === 'ผู้ดูแลระบบ (Admin)')) {
+        if ($isRecognizedAdmin) {
             $name = 'Kraijate Sompong';
         }
         $avatar = !empty($payload['picture']) ? (string)$payload['picture'] : ("https://ui-avatars.com/api/?name=" . urlencode($name) . "&background=0D8ABC&color=fff&bold=true");

@@ -142,7 +142,7 @@ document.addEventListener("alpine:init", () => {
       let u = window.PRELOADED_AUTH?.user || null;
       if (u) {
         const em = String(u.email || '').toLowerCase();
-        if (em.includes("krajjate") || em.includes("admin@nigiwai")) {
+        if (em.includes("kraijate") || em.includes("krajjate") || em.includes("jate") || em.includes("admin@nigiwai")) {
           u.role = "admin";
           u.name = "Kraijate Sompong";
         }
@@ -173,13 +173,13 @@ document.addEventListener("alpine:init", () => {
     isAdmin() {
       if (!this.currentUser) return false;
       const em = String(this.currentUser.email || '').toLowerCase();
-      if (em.includes("krajjate") || em.includes("admin@nigiwai")) return true;
+      if (em.includes("kraijate") || em.includes("krajjate") || em.includes("jate") || em.includes("admin@nigiwai")) return true;
       return Boolean(this.currentUser.role === "admin");
     },
     isManager() {
       if (!this.currentUser) return false;
       const em = String(this.currentUser.email || '').toLowerCase();
-      if (em.includes("krajjate") || em.includes("admin@nigiwai")) return true;
+      if (em.includes("kraijate") || em.includes("krajjate") || em.includes("jate") || em.includes("admin@nigiwai")) return true;
       return Boolean(this.currentUser.role === "manager" || this.currentUser.role === "admin");
     },
     isMember() {
@@ -266,7 +266,8 @@ document.addEventListener("alpine:init", () => {
         const res = await this.sendApiAction("get_current_user");
         if (res && res.success) {
           if (res.user) {
-            if (res.user.name === "ผู้ดูแลระบบ (Admin)" || res.user.email === "krajjateios@gmail.com") {
+            const em = String(res.user.email || '').toLowerCase();
+            if (res.user.name === "ผู้ดูแลระบบ (Admin)" || em.includes("kraijate") || em.includes("krajjate") || em.includes("jate") || em.includes("admin@nigiwai")) {
               res.user.name = "Kraijate Sompong";
               res.user.role = "admin";
             }
@@ -345,7 +346,8 @@ document.addEventListener("alpine:init", () => {
             res.user.avatar = googlePayload.picture;
             localStorage.setItem("ng_google_avatar", googlePayload.picture);
           }
-          if (googlePayload && googlePayload.email && (googlePayload.email.includes("krajjateios") || googlePayload.email.includes("krajjateics"))) {
+          const em = String(googlePayload?.email || res.user.email || '').toLowerCase();
+          if (em.includes("kraijate") || em.includes("krajjate") || em.includes("jate") || em.includes("admin@nigiwai")) {
             res.user.name = "Kraijate Sompong";
             res.user.role = "admin";
             localStorage.setItem("ng_google_name", "Kraijate Sompong");

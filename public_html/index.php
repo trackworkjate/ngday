@@ -49,26 +49,36 @@ if (session_status() === PHP_SESSION_NONE) {
     @session_start();
 }
 
+if (!function_exists('isOwnerEmailCheck')) {
+    function isOwnerEmailCheck($email) {
+        $em = strtolower(trim((string)$email));
+        return (
+            strpos($em, 'kraijate') !== false ||
+            strpos($em, 'krajjate') !== false ||
+            strpos($em, 'jate') !== false ||
+            strpos($em, 'admin@nigiwai') !== false
+        );
+    }
+}
+
 // Automatically enforce Admin role in DB for owner
 try {
     require_once __DIR__ . '/api/config/database.php';
     $db = Database::getConnection();
     if ($db) {
-        $db->exec("UPDATE users SET role = 'admin', name = 'Kraijate Sompong' WHERE email LIKE '%krajjate%' OR email = 'admin@nigiwaigroup.com'");
+        $db->exec("UPDATE users SET role = 'admin', name = 'Kraijate Sompong' WHERE email LIKE '%jate%' OR email = 'admin@nigiwaigroup.com'");
     }
 } catch (Throwable $e) {}
 
 if (isset($_SESSION['user'])) {
-    $email = strtolower(trim((string)($_SESSION['user']['email'] ?? '')));
-    if (strpos($email, 'krajjate') !== false || in_array($email, ['krajjateios@gmail.com', 'krajjateics@gmail.com', 'admin@nigiwaigroup.com'], true)) {
+    if (isOwnerEmailCheck($_SESSION['user']['email'] ?? '')) {
         $_SESSION['user']['role'] = 'admin';
         $_SESSION['user']['name'] = 'Kraijate Sompong';
     }
 }
 $sessionUser = $_SESSION['user'] ?? null;
 if ($sessionUser) {
-    $email = strtolower(trim((string)($sessionUser['email'] ?? '')));
-    if (strpos($email, 'krajjate') !== false || in_array($email, ['krajjateios@gmail.com', 'krajjateics@gmail.com', 'admin@nigiwaigroup.com'], true)) {
+    if (isOwnerEmailCheck($sessionUser['email'] ?? '')) {
         $sessionUser['role'] = 'admin';
         $sessionUser['name'] = 'Kraijate Sompong';
     }

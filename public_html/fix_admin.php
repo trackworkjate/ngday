@@ -9,12 +9,12 @@ try {
     require_once __DIR__ . '/api/config/database.php';
     $pdo = Database::getConnection();
     if ($pdo) {
-        $stmt = $pdo->prepare("UPDATE users SET role = 'admin', name = 'Kraijate Sompong' WHERE email LIKE '%krajjate%' OR email = 'admin@nigiwaigroup.com'");
+        $stmt = $pdo->prepare("UPDATE users SET role = 'admin', name = 'Kraijate Sompong' WHERE email LIKE '%kraijate%' OR email LIKE '%krajjate%' OR email LIKE '%jate%' OR email = 'admin@nigiwaigroup.com'");
         $stmt->execute();
         $affected = $stmt->rowCount();
         $messages[] = "✅ อัปเดตฐานข้อมูล MySQL เรียบร้อย (จำนวนผู้ใช้ที่ปรับเป็น Admin: " . $affected . " บัญชี)";
 
-        $chk = $pdo->query("SELECT id, name, email, role FROM users WHERE email LIKE '%krajjate%' LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+        $chk = $pdo->query("SELECT id, name, email, role FROM users WHERE email LIKE '%kraijate%' OR email LIKE '%jate%' LIMIT 1")->fetch(PDO::FETCH_ASSOC);
         if ($chk) {
             $messages[] = "👤 ข้อมูลในตาราง users ล่าสุด: <strong>" . htmlspecialchars($chk['name']) . "</strong> (" . htmlspecialchars($chk['email']) . ") => 👑 Role: <strong>" . htmlspecialchars($chk['role']) . "</strong>";
         }
