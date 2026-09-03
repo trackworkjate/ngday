@@ -87,6 +87,9 @@ document.addEventListener("alpine:init", () => {
     newUpdateContent: "",
     isSubmittingUpdate: false,
     showUpdatesDrawer: false,
+    editingUpdateId: null,
+    editingUpdateContent: "",
+    isSavingEditUpdate: false,
 
     // Status Options & Colors
     statusPresets: [
@@ -1106,6 +1109,70 @@ document.addEventListener("alpine:init", () => {
         console.warn("Could not save update to server:", e);
       }
       this.isSubmittingUpdate = false;
+      this.$nextTick(() => {
+        if (typeof lucide !== "undefined") lucide.createIcons();
+      });
+    },
+
+    startEditUpdate(update) {
+      this.editingUpdateId = update.id;
+      this.editingUpdateContent = update.content;
+    },
+
+    cancelEditUpdate() {
+      this.editingUpdateId = null;
+      this.editingUpdateContent = "";
+    },
+
+    async saveEditUpdate(update) {
+      if (!this.editingUpdateContent.trim()) return;
+      this.isSavingEditUpdate = true;
+      const newText = this.editingUpdateContent.trim();
+
+      try {
+        const res = await this.sendApiAction("edit_update", {
+          update_id: update.id,
+          content: newText
+        });
+        if (res && res.success) {
+          update.content = newText;
+          this.showToast("✅ แก้ไขข้อความอัปเดตเรียบร้อย");
+          this.cancelEditUpdate();
+        } else {
+          alert(res?.error || "ไม่สามารถแก้ไขข้อความได้");
+        }
+      } catch (e) {
+        console.warn("Edit update error:", e);
+      } finally {
+        this.isSavingEditUpdate = false;
+        this.$nextTick(() => {
+          if (typeof lucide !== "undefined") lucide.createIcons();
+        });
+      }
+    },
+
+    async deleteUpdate(update) {
+      if (!confirm("คุณต้องการลบข้อความอัปเดตนี้ใช่หรือไม่?")) return;
+
+      try {
+        const res = await this.sendApiAction("delete_update", {
+          update_id: update.id
+        });
+        if (res && res.success) {
+          this.itemUpdates = this.itemUpdates.filter(u => u.id !== update.id);
+          if (this.activeItemForUpdates) {
+            if (this.activeItemForUpdates.updates) {
+              this.activeItemForUpdates.updates = this.activeItemForUpdates.updates.filter(u => u.id !== update.id);
+            }
+            this.activeItemForUpdates.update_count = Math.max(0, (this.activeItemForUpdates.update_count || 1) - 1);
+          }
+          this.showToast("🗑️ ลบข้อความอัปเดตเรียบร้อย");
+        } else {
+          alert(res?.error || "ไม่สามารถลบข้อความได้");
+        }
+      } catch (e) {
+        console.warn("Delete update error:", e);
+      }
       this.$nextTick(() => {
         if (typeof lucide !== "undefined") lucide.createIcons();
       });

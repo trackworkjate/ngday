@@ -105,4 +105,40 @@ class UpdateController {
             ]
         ];
     }
+
+    public function editUpdate(int $updateId, array $data): array {
+        $content = trim((string)($data['content'] ?? ''));
+        if (empty($content)) {
+            http_response_code(400);
+            return ['success' => false, 'error' => 'เนื้อหาอัปเดตต้องไม่ว่างเปล่า'];
+        }
+
+        if ($this->pdo) {
+            try {
+                $stmt = $this->pdo->prepare("UPDATE item_updates SET content = :content WHERE id = :id");
+                $stmt->execute([':content' => $content, ':id' => $updateId]);
+            } catch (Throwable $e) {}
+        }
+
+        return [
+            'success' => true,
+            'id' => $updateId,
+            'content' => $content,
+            'updated_at' => date('Y-m-d H:i:s')
+        ];
+    }
+
+    public function deleteUpdate(int $updateId): array {
+        if ($this->pdo) {
+            try {
+                $stmt = $this->pdo->prepare("DELETE FROM item_updates WHERE id = :id");
+                $stmt->execute([':id' => $updateId]);
+            } catch (Throwable $e) {}
+        }
+
+        return [
+            'success' => true,
+            'deleted_id' => $updateId
+        ];
+    }
 }

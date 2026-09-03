@@ -218,6 +218,20 @@ try {
             $response = $ctrl->createUpdate($itemId, $input);
             break;
 
+        case 'edit_update':
+            require_once __DIR__ . '/controllers/UpdateController.php';
+            $updateId = (int)($input['update_id'] ?? 0);
+            $ctrl = new UpdateController();
+            $response = $ctrl->editUpdate($updateId, $input);
+            break;
+
+        case 'delete_update':
+            require_once __DIR__ . '/controllers/UpdateController.php';
+            $updateId = (int)($input['update_id'] ?? 0);
+            $ctrl = new UpdateController();
+            $response = $ctrl->deleteUpdate($updateId);
+            break;
+
         case 'get_board':
         default:
             $boardId = (int)($input['board_id'] ?? 1);

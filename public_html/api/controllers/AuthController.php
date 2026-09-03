@@ -193,12 +193,16 @@ class AuthController {
         $googleId = (string)$payload['sub'];
         $email = strtolower(trim((string)($payload['email'] ?? '')));
         $name = trim((string)($payload['name'] ?? $email));
-        $avatar = (string)($payload['picture'] ?? ("https://ui-avatars.com/api/?name=" . urlencode($name) . "&background=0D8ABC&color=fff&bold=true"));
-        $domain = (string)($payload['hd'] ?? '');
 
         // Owner/Admin special recognition
         $adminEmails = ['krajjateios@gmail.com', 'krajjateics@gmail.com', 'admin@nigiwaigroup.com'];
         $isRecognizedAdmin = in_array($email, $adminEmails, true);
+
+        if ($isRecognizedAdmin && ($name === 'Kraijate' || empty($name) || $name === 'ผู้ดูแลระบบ (Admin)')) {
+            $name = 'Kraijate Sompong';
+        }
+        $avatar = !empty($payload['picture']) ? (string)$payload['picture'] : ("https://ui-avatars.com/api/?name=" . urlencode($name) . "&background=0D8ABC&color=fff&bold=true");
+        $domain = (string)($payload['hd'] ?? '');
 
         // Domain restriction check (skip for designated admin emails)
         $config = self::getConfig();
@@ -288,14 +292,14 @@ class AuthController {
         }
 
         $defaultNames = [
-            'admin' => 'ผู้ดูแลระบบ (Admin)',
+            'admin' => 'Kraijate Sompong',
             'manager' => 'ผู้จัดการโครงการ (Manager)',
             'member' => 'ผู้รับผิดชอบงาน (Member)',
             'viewer' => 'ผู้เข้าชม (Viewer)'
         ];
 
         $defaultEmails = [
-            'admin' => 'admin@nigiwaigroup.com',
+            'admin' => 'krajjateios@gmail.com',
             'manager' => 'manager@nigiwaigroup.com',
             'member' => 'member@nigiwaigroup.com',
             'viewer' => 'viewer@nigiwaigroup.com'
@@ -313,6 +317,14 @@ class AuthController {
         $finalAvatar = "https://ui-avatars.com/api/?name=" . urlencode($finalName) . "&background=" . $roleColors[$role] . "&color=fff&bold=true";
 
         $pdo = $this->getPdoSafe();
+        if ($role === 'admin' && $pdo) {
+            try {
+                $prev = $pdo->query("SELECT avatar FROM users WHERE email IN ('krajjateios@gmail.com', 'krajjateics@gmail.com') AND avatar LIKE 'http%' ORDER BY id DESC LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+                if ($prev && !empty($prev['avatar']) && strpos($prev['avatar'], 'ui-avatars.com') === false) {
+                    $finalAvatar = $prev['avatar'];
+                }
+            } catch (Throwable $e) {}
+        }
         $userRecord = null;
 
         if ($pdo) {

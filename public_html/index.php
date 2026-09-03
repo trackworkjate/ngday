@@ -1596,9 +1596,56 @@ $sessionUser = $_SESSION['user'] ?? null;
                     </template>
                     <span class="text-xs font-bold text-gray-800" x-text="update.user_name || 'ผู้ใช้งานระบบ'"></span>
                   </div>
-                  <span class="text-[10px] text-gray-400" x-text="update.created_at || 'Recently'"></span>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] text-gray-400" x-text="update.created_at || 'Recently'"></span>
+                    <!-- Edit & Delete Action Buttons (for Admin, Manager, or author) -->
+                    <div class="flex items-center gap-1 opacity-80 hover:opacity-100" x-show="isAdmin() || isManager() || (currentUser && currentUser.name === update.user_name)">
+                      <button 
+                        @click="startEditUpdate(update)" 
+                        class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" 
+                        title="แก้ไขข้อความ"
+                      >
+                        <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+                      </button>
+                      <button 
+                        @click="deleteUpdate(update)" 
+                        class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" 
+                        title="ลบข้อความ"
+                      >
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <p class="text-xs text-gray-700 whitespace-pre-line leading-relaxed" x-text="update.content"></p>
+
+                <!-- Normal Content View -->
+                <div x-show="editingUpdateId !== update.id">
+                  <p class="text-xs text-gray-700 whitespace-pre-line leading-relaxed" x-text="update.content"></p>
+                </div>
+
+                <!-- Inline Edit Mode -->
+                <div x-show="editingUpdateId === update.id" class="mt-2 space-y-2" style="display: none;">
+                  <textarea 
+                    x-model="editingUpdateContent" 
+                    rows="2" 
+                    class="w-full text-xs p-2.5 border border-blue-400 rounded-md focus:ring-1 focus:ring-blue-500 outline-none resize-none bg-blue-50/20"
+                  ></textarea>
+                  <div class="flex justify-end gap-1.5">
+                    <button 
+                      @click="cancelEditUpdate()" 
+                      class="px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                    >
+                      ยกเลิก
+                    </button>
+                    <button 
+                      @click="saveEditUpdate(update)" 
+                      :disabled="!editingUpdateContent.trim() || isSavingEditUpdate" 
+                      class="px-3 py-1 text-[11px] font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded shadow-xs transition-colors flex items-center gap-1"
+                    >
+                      <span x-text="isSavingEditUpdate ? 'กำลังบันทึก...' : 'บันทึกแก้ไข'"></span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </template>
             <div x-show="itemUpdates.length === 0" class="text-center py-12 text-gray-400 text-xs">
