@@ -1043,20 +1043,20 @@ if ($sessionUser) {
                           <div 
                             x-show="col.id === 'col_17' || (col.title && col.title.toLowerCase().includes('last update'))" 
                             class="w-full flex items-center justify-center px-1"
-                            :title="'อัปเดตล่าสุดโดย: ' + parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').name + (parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').time ? ' (' + parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').time + ')' : '')"
+                            :title="'อัปเดตล่าสุดโดย: ' + getItemLastUpdate(item, col.id).name + (getItemLastUpdate(item, col.id).time ? ' (' + getItemLastUpdate(item, col.id).time + ')' : '')"
                           >
                             <div class="inline-flex items-center gap-1.5 max-w-full py-0.5 px-1.5 rounded-lg hover:bg-gray-100/80 transition-colors cursor-default">
                               <!-- Avatar -->
-                              <template x-if="parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').avatar">
+                              <template x-if="getItemLastUpdate(item, col.id).avatar">
                                 <img 
-                                  :src="parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').avatar" 
+                                  :src="getItemLastUpdate(item, col.id).avatar" 
                                   class="w-5 h-5 rounded-full object-cover border border-gray-200 shadow-2xs shrink-0" 
                                 />
                               </template>
-                              <template x-if="!parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').avatar && parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').name !== '-'">
+                              <template x-if="!getItemLastUpdate(item, col.id).avatar && getItemLastUpdate(item, col.id).name !== '-'">
                                 <div 
                                   class="w-5 h-5 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[9px] flex items-center justify-center shadow-2xs shrink-0"
-                                  x-text="parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').initials"
+                                  x-text="getItemLastUpdate(item, col.id).initials"
                                 ></div>
                               </template>
 
@@ -1064,11 +1064,11 @@ if ($sessionUser) {
                               <div class="text-left min-w-0 leading-tight">
                                 <div 
                                   class="text-[11px] font-bold text-gray-800 truncate max-w-[105px]"
-                                  x-text="parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').name"
+                                  x-text="getItemLastUpdate(item, col.id).name"
                                 ></div>
                                 <div 
                                   class="text-[9px] text-gray-400 truncate max-w-[105px]"
-                                  x-text="parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').time"
+                                  x-text="getItemLastUpdate(item, col.id).time"
                                 ></div>
                               </div>
                             </div>
@@ -1349,11 +1349,11 @@ if ($sessionUser) {
                                     <td class="px-2 py-1 text-center border-r border-[#e6e9ef]">
                                       <div 
                                         class="inline-flex items-center gap-1.5 max-w-full py-0.5 px-1.5 rounded-lg hover:bg-gray-100/80 transition-colors cursor-default"
-                                        :title="'อัปเดตล่าสุดโดย: ' + parseLastUpdateInfo(sub.column_values ? sub.column_values['sub_col_10'] : '').name + (parseLastUpdateInfo(sub.column_values ? sub.column_values['sub_col_10'] : '').time ? ' (' + parseLastUpdateInfo(sub.column_values ? sub.column_values['sub_col_10'] : '').time + ')' : '')"
+                                        :title="'อัปเดตล่าสุดโดย: ' + getItemLastUpdate(sub, 'sub_col_10').name + (getItemLastUpdate(sub, 'sub_col_10').time ? ' (' + getItemLastUpdate(sub, 'sub_col_10').time + ')' : '')"
                                       >
-                                        <template x-if="parseLastUpdateInfo(sub.column_values ? sub.column_values['sub_col_10'] : '').avatar">
+                                        <template x-if="getItemLastUpdate(sub, 'sub_col_10').avatar">
                                           <img 
-                                            :src="parseLastUpdateInfo(sub.column_values ? sub.column_values['sub_col_10'] : '').avatar" 
+                                            :src="getItemLastUpdate(sub, 'sub_col_10').avatar" 
                                             class="w-4 h-4 rounded-full object-cover border border-gray-200 shadow-2xs shrink-0" 
                                           />
                                         </template>

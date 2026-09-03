@@ -891,15 +891,76 @@ document.addEventListener("alpine:init", () => {
       return null;
     },
 
+    findItemAndParent(itemId) {
+      if (!itemId) return { item: null, parent: null, isSubitem: false };
+      const idStr = String(itemId);
+      const groups = (this.board && this.board.groups) ? this.board.groups : (this.groups || []);
+      for (const g of groups) {
+        if (!g.items) continue;
+        for (const it of g.items) {
+          if (String(it.id) === idStr) {
+            return { item: it, parent: null, isSubitem: false };
+          }
+          if (it.subitems) {
+            for (const sub of it.subitems) {
+              if (String(sub.id) === idStr) {
+                return { item: sub, parent: it, isSubitem: true };
+              }
+            }
+          }
+        }
+      }
+      return { item: null, parent: null, isSubitem: false };
+    },
+
+    // Rich resolver that pulls the true latest updater from item updates history or column value
+    getItemLastUpdate(item, colId = null) {
+      if (!item) return { name: '-', time: '', avatar: '', initials: '-' };
+      const isSub = (colId === 'sub_col_10') || (item.column_values && 'sub_col_10' in item.column_values) || this.findItemAndParent(item.id).isSubitem;
+      const targetColId = colId || (isSub ? 'sub_col_10' : 'col_17');
+
+      // 1. If item has updates history, pull the author and date of the latest update!
+      if (item.updates && item.updates.length > 0) {
+        const up = item.updates[0];
+        if (up && (up.user_name || up.created_at)) {
+          let author = String(up.user_name || 'ผู้ใช้งาน').trim();
+          let av = up.user_avatar || '';
+          if (author.includes("Jate") || author.includes("Kraijate") || author.includes("krajjate") || author.includes("CTO")) {
+            author = "Kraijate Sompong";
+            if (!av) av = localStorage.getItem("ng_google_avatar") || "";
+          }
+          return {
+            name: author,
+            time: up.created_at || '',
+            avatar: av,
+            initials: author.substring(0, 2).toUpperCase()
+          };
+        }
+      }
+
+      // 2. Check value in column_values
+      const rawVal = item.column_values ? item.column_values[targetColId] : null;
+      if (rawVal) {
+        return this.parseLastUpdateInfo(rawVal);
+      }
+
+      return { name: '-', time: '', avatar: '', initials: '-' };
+    },
+
     // Parse Last Updated column value (supporting rich JSON or legacy Monday string)
     parseLastUpdateInfo(val) {
       if (!val) return { name: '-', time: '', avatar: '', initials: '-' };
       if (typeof val === 'object') {
-        const name = val.name || '-';
+        let name = val.name || '-';
+        let av = val.avatar || '';
+        if (name.includes("Jate") || name.includes("Kraijate") || name.includes("krajjate") || name.includes("CTO")) {
+          name = "Kraijate Sompong";
+          if (!av) av = localStorage.getItem("ng_google_avatar") || "";
+        }
         return {
           name: name,
           time: val.time || '',
-          avatar: val.avatar || '',
+          avatar: av,
           initials: name !== '-' ? name.substring(0, 2).toUpperCase() : '-'
         };
       }
@@ -908,11 +969,16 @@ document.addEventListener("alpine:init", () => {
         if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
           try {
             const p = JSON.parse(trimmed);
-            const name = p.name || '-';
+            let name = p.name || '-';
+            let av = p.avatar || '';
+            if (name.includes("Jate") || name.includes("Kraijate") || name.includes("krajjate") || name.includes("CTO")) {
+              name = "Kraijate Sompong";
+              if (!av) av = localStorage.getItem("ng_google_avatar") || "";
+            }
             return {
               name: name,
               time: p.time || '',
-              avatar: p.avatar || '',
+              avatar: av,
               initials: name !== '-' ? name.substring(0, 2).toUpperCase() : '-'
             };
           } catch (e) {}
@@ -927,12 +993,17 @@ document.addEventListener("alpine:init", () => {
           }
         }
         if (splitIdx > 0) {
-          const name = trimmed.substring(0, splitIdx).trim();
+          let name = trimmed.substring(0, splitIdx).trim();
           const time = trimmed.substring(splitIdx).trim();
+          let av = '';
+          if (name.includes("Jate") || name.includes("Kraijate") || name.includes("krajjate") || name.includes("CTO")) {
+            name = "Kraijate Sompong";
+            av = localStorage.getItem("ng_google_avatar") || "";
+          }
           return {
             name: name,
             time: time,
-            avatar: '',
+            avatar: av,
             initials: name.substring(0, 2).toUpperCase()
           };
         }
@@ -955,6 +1026,11 @@ document.addEventListener("alpine:init", () => {
 
     recordLastUpdate(item, parentItem = null) {
       if (!item) return;
+      const found = this.findItemAndParent(item.id);
+      const targetItem = found.item || item;
+      const isSub = found.isSubitem || Boolean(item.parent_id || parentItem || item.is_subitem || (item.column_values && 'sub_col_10' in item.column_values));
+      const parent = found.parent || parentItem;
+
       const userName = this.currentUser?.name || "Kraijate Sompong";
       const userAvatar = this.currentUser?.avatar || localStorage.getItem("ng_google_avatar") || "";
       const now = new Date();
@@ -968,25 +1044,30 @@ document.addEventListener("alpine:init", () => {
       };
       const jsonStr = JSON.stringify(updateData);
 
-      const isSub = Boolean(item.parent_id || parentItem || item.is_subitem);
-      const colId = this.getLastUpdateColumnId(isSub);
+      if (!targetItem.column_values) targetItem.column_values = {};
 
-      if (!item.column_values) item.column_values = {};
-      item.column_values[colId] = jsonStr;
-
-      this.sendApiAction("update_cell", {
-        item_id: item.id,
-        column_id: colId,
-        value: jsonStr
-      }).catch(() => {});
-
-      if (parentItem) {
-        const parentColId = this.getLastUpdateColumnId(false);
-        if (!parentItem.column_values) parentItem.column_values = {};
-        parentItem.column_values[parentColId] = jsonStr;
+      if (isSub) {
+        targetItem.column_values["sub_col_10"] = jsonStr;
         this.sendApiAction("update_cell", {
-          item_id: parentItem.id,
-          column_id: parentColId,
+          item_id: targetItem.id,
+          column_id: "sub_col_10",
+          value: jsonStr
+        }).catch(() => {});
+      } else {
+        targetItem.column_values["col_17"] = jsonStr;
+        this.sendApiAction("update_cell", {
+          item_id: targetItem.id,
+          column_id: "col_17",
+          value: jsonStr
+        }).catch(() => {});
+      }
+
+      if (parent) {
+        if (!parent.column_values) parent.column_values = {};
+        parent.column_values["col_17"] = jsonStr;
+        this.sendApiAction("update_cell", {
+          item_id: parent.id,
+          column_id: "col_17",
           value: jsonStr
         }).catch(() => {});
       }
@@ -1264,8 +1345,9 @@ document.addEventListener("alpine:init", () => {
     },
 
     // Updates Drawer
-    async openUpdatesDrawer(item) {
+    async openUpdatesDrawer(item, parentItem = null) {
       this.activeItemForUpdates = item;
+      this.activeItemParent = parentItem || (this.findItemAndParent(item.id).parent);
       this.showUpdatesDrawer = true;
       this.itemUpdates = [];
 
@@ -1278,6 +1360,7 @@ document.addEventListener("alpine:init", () => {
         if (res && res.success && res.updates) {
           this.itemUpdates = res.updates;
           this.activeItemForUpdates.update_count = res.updates.length;
+          this.activeItemForUpdates.updates = res.updates;
         }
       } catch (e) {
         console.warn("Could not fetch remote updates, showing local updates");
@@ -1292,8 +1375,8 @@ document.addEventListener("alpine:init", () => {
       this.isSubmittingUpdate = true;
 
       const content = this.newUpdateContent.trim();
-      const authorName = (this.currentUser && this.currentUser.name) ? this.currentUser.name : "ผู้ใช้งานระบบ";
-      const authorAvatar = (this.currentUser && this.currentUser.avatar) ? this.currentUser.avatar : null;
+      const authorName = (this.currentUser && this.currentUser.name) ? this.currentUser.name : "Kraijate Sompong";
+      const authorAvatar = (this.currentUser && this.currentUser.avatar) ? this.currentUser.avatar : (localStorage.getItem("ng_google_avatar") || null);
 
       const newUp = {
         id: "temp_" + Date.now(),
@@ -1323,7 +1406,7 @@ document.addEventListener("alpine:init", () => {
       } catch (e) {
         console.warn("Could not save update to server:", e);
       }
-      this.recordLastUpdate(this.activeItemForUpdates);
+      this.recordLastUpdate(this.activeItemForUpdates, this.activeItemParent);
       this.isSubmittingUpdate = false;
       this.$nextTick(() => {
         if (typeof lucide !== "undefined") lucide.createIcons();
@@ -1352,7 +1435,7 @@ document.addEventListener("alpine:init", () => {
         });
         if (res && res.success) {
           update.content = newText;
-          this.recordLastUpdate(this.activeItemForUpdates);
+          this.recordLastUpdate(this.activeItemForUpdates, this.activeItemParent);
           this.showToast("✅ แก้ไขข้อความอัปเดตเรียบร้อย");
           this.cancelEditUpdate();
         } else {
@@ -1382,7 +1465,7 @@ document.addEventListener("alpine:init", () => {
               this.activeItemForUpdates.updates = this.activeItemForUpdates.updates.filter(u => u.id !== update.id);
             }
             this.activeItemForUpdates.update_count = Math.max(0, (this.activeItemForUpdates.update_count || 1) - 1);
-            this.recordLastUpdate(this.activeItemForUpdates);
+            this.recordLastUpdate(this.activeItemForUpdates, this.activeItemParent);
           }
           this.showToast("🗑️ ลบข้อความอัปเดตเรียบร้อย");
         } else {
