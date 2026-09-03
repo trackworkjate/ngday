@@ -1039,9 +1039,44 @@ if ($sessionUser) {
                             </template>
                           </div>
 
+                          <!-- LAST UPDATED COLUMN (Shows Real Google Avatar, Updater Name & Timestamp) -->
+                          <div 
+                            x-show="col.id === 'col_17' || (col.title && col.title.toLowerCase().includes('last update'))" 
+                            class="w-full flex items-center justify-center px-1"
+                            :title="'อัปเดตล่าสุดโดย: ' + parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').name + (parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').time ? ' (' + parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').time + ')' : '')"
+                          >
+                            <div class="inline-flex items-center gap-1.5 max-w-full py-0.5 px-1.5 rounded-lg hover:bg-gray-100/80 transition-colors cursor-default">
+                              <!-- Avatar -->
+                              <template x-if="parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').avatar">
+                                <img 
+                                  :src="parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').avatar" 
+                                  class="w-5 h-5 rounded-full object-cover border border-gray-200 shadow-2xs shrink-0" 
+                                />
+                              </template>
+                              <template x-if="!parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').avatar && parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').name !== '-'">
+                                <div 
+                                  class="w-5 h-5 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[9px] flex items-center justify-center shadow-2xs shrink-0"
+                                  x-text="parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').initials"
+                                ></div>
+                              </template>
+
+                              <!-- Info (Name & Time) -->
+                              <div class="text-left min-w-0 leading-tight">
+                                <div 
+                                  class="text-[11px] font-bold text-gray-800 truncate max-w-[105px]"
+                                  x-text="parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').name"
+                                ></div>
+                                <div 
+                                  class="text-[9px] text-gray-400 truncate max-w-[105px]"
+                                  x-text="parseLastUpdateInfo(item.column_values ? item.column_values[col.id] : '').time"
+                                ></div>
+                              </div>
+                            </div>
+                          </div>
+
                           <!-- DATE / TIMELINE TYPE (Click to open Calendar) -->
                           <div 
-                            x-show="col.type === 'date' && col.id !== 'col_5' && col.id !== 'col_6' && col.id !== 'col_12' && !(col.title && (col.title.toLowerCase().includes('soft opening') || col.title.toLowerCase().includes('grand opening') || col.title.toLowerCase().includes('duration')))" 
+                            x-show="col.type === 'date' && col.id !== 'col_5' && col.id !== 'col_6' && col.id !== 'col_12' && col.id !== 'col_17' && !(col.title && (col.title.toLowerCase().includes('soft opening') || col.title.toLowerCase().includes('grand opening') || col.title.toLowerCase().includes('duration') || col.title.toLowerCase().includes('last update')))" 
                             class="w-full text-center cursor-pointer group/datecell"
                             @click="openTimelinePopover(item, false)"
                             title="คลิกเพื่อเลือกวันที่จาก Calendar"
@@ -1053,7 +1088,7 @@ if ($sessionUser) {
                           </div>
 
                           <!-- OTHER TEXT / NUMBER -->
-                          <div x-show="col.type !== 'status' && col.type !== 'progress' && col.type !== 'date' && col.id !== 'col_2' && col.id !== 'col_5' && col.id !== 'col_6' && col.id !== 'col_12' && !(col.title && (col.title.toLowerCase().includes('duration') || col.title.toLowerCase().includes('overall complete') || col.title.toLowerCase().includes('soft opening') || col.title.toLowerCase().includes('grand opening')))" class="w-full">
+                          <div x-show="col.type !== 'status' && col.type !== 'progress' && col.type !== 'date' && col.id !== 'col_2' && col.id !== 'col_5' && col.id !== 'col_6' && col.id !== 'col_12' && col.id !== 'col_17' && !(col.title && (col.title.toLowerCase().includes('duration') || col.title.toLowerCase().includes('overall complete') || col.title.toLowerCase().includes('soft opening') || col.title.toLowerCase().includes('grand opening') || col.title.toLowerCase().includes('last update')))" class="w-full">
                             <input 
                               type="text" 
                               :value="item.column_values ? (item.column_values[col.id] ?? '') : ''"
@@ -1231,6 +1266,17 @@ if ($sessionUser) {
                                     </div>
                                   </th>
 
+                                  <!-- Last Updated Header -->
+                                  <th 
+                                    class="min-w-[140px] px-3 py-2 text-center border-r border-[#e6e9ef] select-none"
+                                    title="ผู้ที่ทำการอัปเดตล่าสุด"
+                                  >
+                                    <div class="flex items-center justify-center gap-1 text-gray-500 font-bold">
+                                      <i data-lucide="clock" class="w-3 h-3 text-gray-400"></i>
+                                      <span>Last Updated</span>
+                                    </div>
+                                  </th>
+
                                   <th class="w-8 px-2 py-2 text-center"></th>
                                 </tr>
                               </thead>
@@ -1249,7 +1295,7 @@ if ($sessionUser) {
                                       >
                                     </td>
                                     <td class="px-3 py-1.5">
-                                      <input type="text" :value="sub.name" @change="updateItemName(sub, $event.target.value)" class="w-full bg-transparent hover:bg-white focus:bg-white px-2 py-1 rounded text-xs text-gray-800 border border-transparent focus:border-blue-400 outline-none font-medium truncate" />
+                                      <input type="text" :value="sub.name" @change="updateItemName(sub, $event.target.value, item)" class="w-full bg-transparent hover:bg-white focus:bg-white px-2 py-1 rounded text-xs text-gray-800 border border-transparent focus:border-blue-400 outline-none font-medium truncate" />
                                     </td>
                                     <td class="px-2 py-1.5 text-center">
                                       <button @click="openUpdatesDrawer(sub)" class="inline-flex items-center justify-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold" :class="sub.update_count > 0 ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-blue-600 border border-dashed border-gray-300'">
@@ -1272,7 +1318,7 @@ if ($sessionUser) {
                                       </div>
                                       <div x-show="activeStatusPopover && activeStatusPopover.itemId === sub.id" @click.away="activeStatusPopover = null" class="absolute z-40 top-full left-1/2 -translate-x-1/2 mt-1 w-44 bg-white rounded-lg shadow-xl border border-gray-200 p-1.5 space-y-1" style="display: none;">
                                         <template x-for="preset in statusPresets" :key="preset.label">
-                                          <button @click="updateCell(sub, 'sub_col_3', preset.label)" class="w-full text-center py-1.5 px-2 rounded text-xs font-semibold text-white transition-opacity hover:opacity-90 shadow-2xs" :style="`background-color: ${preset.bg}`"><span x-text="preset.label"></span></button>
+                                          <button @click="updateCell(sub, 'sub_col_3', preset.label, item)" class="w-full text-center py-1.5 px-2 rounded text-xs font-semibold text-white transition-opacity hover:opacity-90 shadow-2xs" :style="`background-color: ${preset.bg}`"><span x-text="preset.label"></span></button>
                                         </template>
                                       </div>
                                     </td>
@@ -1294,10 +1340,40 @@ if ($sessionUser) {
                                       </div>
                                     </td>
                                     <td class="px-2 py-1.5 text-center">
-                                      <input type="text" :value="sub.column_values ? sub.column_values['sub_col_7'] || '' : ''" @change="updateCell(sub, 'sub_col_7', $event.target.value)" placeholder="-" class="w-full text-center bg-transparent hover:bg-white focus:bg-white px-1 py-0.5 rounded text-xs text-gray-700 outline-none border border-transparent focus:border-blue-400" />
+                                      <input type="text" :value="sub.column_values ? sub.column_values['sub_col_7'] || '' : ''" @change="updateCell(sub, 'sub_col_7', $event.target.value, item)" placeholder="-" class="w-full text-center bg-transparent hover:bg-white focus:bg-white px-1 py-0.5 rounded text-xs text-gray-700 outline-none border border-transparent focus:border-blue-400" />
                                     </td>
                                     <td class="px-3 py-1.5">
-                                      <input type="text" :value="sub.column_values ? sub.column_values['sub_col_8'] || '' : ''" @change="updateCell(sub, 'sub_col_8', $event.target.value)" class="w-full bg-transparent hover:bg-white focus:bg-white px-1 py-0.5 rounded text-xs text-gray-700 outline-none border border-transparent focus:border-blue-400 truncate" />
+                                      <input type="text" :value="sub.column_values ? sub.column_values['sub_col_8'] || '' : ''" @change="updateCell(sub, 'sub_col_8', $event.target.value, item)" class="w-full bg-transparent hover:bg-white focus:bg-white px-1 py-0.5 rounded text-xs text-gray-700 outline-none border border-transparent focus:border-blue-400 truncate" />
+                                    </td>
+                                    <!-- Last Updated Cell -->
+                                    <td class="px-2 py-1 text-center border-r border-[#e6e9ef]">
+                                      <div 
+                                        class="inline-flex items-center gap-1.5 max-w-full py-0.5 px-1.5 rounded-lg hover:bg-gray-100/80 transition-colors cursor-default"
+                                        :title="'อัปเดตล่าสุดโดย: ' + parseLastUpdateInfo(sub.column_values ? sub.column_values['sub_col_10'] : '').name + (parseLastUpdateInfo(sub.column_values ? sub.column_values['sub_col_10'] : '').time ? ' (' + parseLastUpdateInfo(sub.column_values ? sub.column_values['sub_col_10'] : '').time + ')' : '')"
+                                      >
+                                        <template x-if="parseLastUpdateInfo(sub.column_values ? sub.column_values['sub_col_10'] : '').avatar">
+                                          <img 
+                                            :src="parseLastUpdateInfo(sub.column_values ? sub.column_values['sub_col_10'] : '').avatar" 
+                                            class="w-4 h-4 rounded-full object-cover border border-gray-200 shadow-2xs shrink-0" 
+                                          />
+                                        </template>
+                                        <template x-if="!parseLastUpdateInfo(sub.column_values ? sub.column_values['sub_col_10'] : '').avatar && parseLastUpdateInfo(sub.column_values ? sub.column_values['sub_col_10'] : '').name !== '-'">
+                                          <div 
+                                            class="w-4 h-4 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-[8px] flex items-center justify-center shadow-2xs shrink-0"
+                                            x-text="parseLastUpdateInfo(sub.column_values ? sub.column_values['sub_col_10'] : '').initials"
+                                          ></div>
+                                        </template>
+                                        <div class="text-left min-w-0 leading-tight">
+                                          <div 
+                                            class="text-[10px] font-bold text-gray-800 truncate max-w-[95px]"
+                                            x-text="parseLastUpdateInfo(sub.column_values ? sub.column_values['sub_col_10'] : '').name"
+                                          ></div>
+                                          <div 
+                                            class="text-[8px] text-gray-400 truncate max-w-[95px]"
+                                            x-text="parseLastUpdateInfo(sub.column_values ? sub.column_values['sub_col_10'] : '').time"
+                                          ></div>
+                                        </div>
+                                      </div>
                                     </td>
                                     <td class="px-2 py-1.5 text-center">
                                       <button @click="deleteItem(group, sub, item)" class="text-gray-300 hover:text-red-600 opacity-0 group-hover/subrow:opacity-100 transition-opacity p-0.5"><i data-lucide="trash-2" class="w-3 h-3"></i></button>

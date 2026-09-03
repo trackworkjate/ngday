@@ -891,8 +891,111 @@ document.addEventListener("alpine:init", () => {
       return null;
     },
 
+    // Parse Last Updated column value (supporting rich JSON or legacy Monday string)
+    parseLastUpdateInfo(val) {
+      if (!val) return { name: '-', time: '', avatar: '', initials: '-' };
+      if (typeof val === 'object') {
+        const name = val.name || '-';
+        return {
+          name: name,
+          time: val.time || '',
+          avatar: val.avatar || '',
+          initials: name !== '-' ? name.substring(0, 2).toUpperCase() : '-'
+        };
+      }
+      if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          try {
+            const p = JSON.parse(trimmed);
+            const name = p.name || '-';
+            return {
+              name: name,
+              time: p.time || '',
+              avatar: p.avatar || '',
+              initials: name !== '-' ? name.substring(0, 2).toUpperCase() : '-'
+            };
+          } catch (e) {}
+        }
+        // Legacy Monday.com string, e.g. "PP IT Dec 4, 2025 9:56 AM" or "Oat Creative Jul 20, 2026 9:01 AM"
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        let splitIdx = -1;
+        for (const m of months) {
+          const idx = trimmed.indexOf(m);
+          if (idx > 0 && (splitIdx === -1 || idx < splitIdx)) {
+            splitIdx = idx;
+          }
+        }
+        if (splitIdx > 0) {
+          const name = trimmed.substring(0, splitIdx).trim();
+          const time = trimmed.substring(splitIdx).trim();
+          return {
+            name: name,
+            time: time,
+            avatar: '',
+            initials: name.substring(0, 2).toUpperCase()
+          };
+        }
+        return {
+          name: trimmed,
+          time: '',
+          avatar: '',
+          initials: trimmed.substring(0, 2).toUpperCase()
+        };
+      }
+      return { name: '-', time: '', avatar: '', initials: '-' };
+    },
+
+    getLastUpdateColumnId(isSubitem = false) {
+      const cols = isSubitem ? (this.subColumns || []) : (this.mainColumns || []);
+      const found = cols.find(c => c.title && c.title.toLowerCase().includes("last update"));
+      if (found) return found.id;
+      return isSubitem ? "sub_col_10" : "col_17";
+    },
+
+    recordLastUpdate(item, parentItem = null) {
+      if (!item) return;
+      const userName = this.currentUser?.name || "Kraijate Sompong";
+      const userAvatar = this.currentUser?.avatar || localStorage.getItem("ng_google_avatar") || "";
+      const now = new Date();
+      const timeStr = now.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" }) + " " + now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+
+      const updateData = {
+        name: userName,
+        avatar: userAvatar,
+        time: timeStr,
+        timestamp: Date.now()
+      };
+      const jsonStr = JSON.stringify(updateData);
+
+      const isSub = Boolean(item.parent_id || parentItem || item.is_subitem);
+      const colId = this.getLastUpdateColumnId(isSub);
+
+      if (!item.column_values) item.column_values = {};
+      item.column_values[colId] = jsonStr;
+
+      this.sendApiAction("update_cell", {
+        item_id: item.id,
+        column_id: colId,
+        value: jsonStr
+      }).catch(() => {});
+
+      if (parentItem) {
+        const parentColId = this.getLastUpdateColumnId(false);
+        if (!parentItem.column_values) parentItem.column_values = {};
+        parentItem.column_values[parentColId] = jsonStr;
+        this.sendApiAction("update_cell", {
+          item_id: parentItem.id,
+          column_id: parentColId,
+          value: jsonStr
+        }).catch(() => {});
+      }
+
+      this.persistToLocalStorage();
+    },
+
     // Cell Mutations with Optimistic UI Update and Permanent Persistence
-    async updateCell(item, colId, value) {
+    async updateCell(item, colId, value, parentItem = null) {
       if (this.isViewer()) {
         this.showToast("⚠️ สิทธิ์ Viewer สามารถดูได้อย่างเดียว");
         return;
@@ -902,6 +1005,11 @@ document.addEventListener("alpine:init", () => {
       this.activeStatusPopover = null;
       this.persistToLocalStorage();
 
+      // Automatically record person & timestamp to Last Update column
+      if (colId !== "col_17" && colId !== "sub_col_10") {
+        this.recordLastUpdate(item, parentItem);
+      }
+
       await this.sendApiAction("update_cell", {
         item_id: item.id,
         column_id: colId,
@@ -909,7 +1017,7 @@ document.addEventListener("alpine:init", () => {
       });
     },
 
-    async updateItemName(item, newName) {
+    async updateItemName(item, newName, parentItem = null) {
       if (this.isViewer()) {
         this.showToast("⚠️ สิทธิ์ Viewer สามารถดูได้อย่างเดียว");
         return;
@@ -918,6 +1026,9 @@ document.addEventListener("alpine:init", () => {
       if (!newName || newName === item.name) return;
       item.name = newName;
       this.persistToLocalStorage();
+
+      // Automatically record person & timestamp to Last Update column
+      this.recordLastUpdate(item, parentItem);
 
       await this.sendApiAction("update_name", {
         item_id: item.id,
@@ -1212,6 +1323,7 @@ document.addEventListener("alpine:init", () => {
       } catch (e) {
         console.warn("Could not save update to server:", e);
       }
+      this.recordLastUpdate(this.activeItemForUpdates);
       this.isSubmittingUpdate = false;
       this.$nextTick(() => {
         if (typeof lucide !== "undefined") lucide.createIcons();
@@ -1240,6 +1352,7 @@ document.addEventListener("alpine:init", () => {
         });
         if (res && res.success) {
           update.content = newText;
+          this.recordLastUpdate(this.activeItemForUpdates);
           this.showToast("✅ แก้ไขข้อความอัปเดตเรียบร้อย");
           this.cancelEditUpdate();
         } else {
@@ -1269,6 +1382,7 @@ document.addEventListener("alpine:init", () => {
               this.activeItemForUpdates.updates = this.activeItemForUpdates.updates.filter(u => u.id !== update.id);
             }
             this.activeItemForUpdates.update_count = Math.max(0, (this.activeItemForUpdates.update_count || 1) - 1);
+            this.recordLastUpdate(this.activeItemForUpdates);
           }
           this.showToast("🗑️ ลบข้อความอัปเดตเรียบร้อย");
         } else {
