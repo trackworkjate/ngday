@@ -22,17 +22,46 @@ if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS
     exit;
 }
 
+$errors = [];
+
 try {
     if (session_status() === PHP_SESSION_NONE) {
         @session_start();
     }
+} catch (Throwable $t) {
+    $errors[] = "session: " . $t->getMessage();
+}
+
+try {
     require_once __DIR__ . '/services/DataPersistence.php';
+} catch (Throwable $t) {
+    $errors[] = "DataPersistence.php (line " . $t->getLine() . "): " . $t->getMessage();
+}
+
+try {
     require_once __DIR__ . '/controllers/BoardController.php';
+} catch (Throwable $t) {
+    $errors[] = "BoardController.php (line " . $t->getLine() . "): " . $t->getMessage();
+}
+
+try {
     require_once __DIR__ . '/controllers/ItemController.php';
+} catch (Throwable $t) {
+    $errors[] = "ItemController.php (line " . $t->getLine() . "): " . $t->getMessage();
+}
+
+try {
     require_once __DIR__ . '/controllers/AuthController.php';
 } catch (Throwable $t) {
+    $errors[] = "AuthController.php (line " . $t->getLine() . "): " . $t->getMessage();
+}
+
+if (!empty($errors)) {
     http_response_code(200);
-    echo json_encode(['success' => false, 'error' => $t->getMessage()], JSON_UNESCAPED_UNICODE);
+    echo json_encode([
+        'success' => false,
+        'error' => implode(' | ', $errors)
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -186,11 +215,9 @@ try {
     echo json_encode($response, JSON_UNESCAPED_UNICODE);
 
 } catch (Throwable $e) {
-    http_response_code(500);
+    http_response_code(200);
     echo json_encode([
         'success' => false,
-        'error' => $e->getMessage(),
-        'file' => $e->getFile(),
-        'line' => $e->getLine()
+        'error' => $e->getMessage() . ' in ' . basename($e->getFile()) . ' on line ' . $e->getLine()
     ], JSON_UNESCAPED_UNICODE);
 }
