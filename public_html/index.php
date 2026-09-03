@@ -29,6 +29,26 @@ if ($initialDataJson === '{}' || empty($initialDataJson)) {
         $initialDataJson = file_get_contents($jsonPath);
     }
 }
+
+// Preload Auth Config and Session directly in PHP (Zero-Lag, 100% Reliable)
+$authConfigFile = __DIR__ . '/api/config/auth_config.php';
+$authConfig = file_exists($authConfigFile) ? include $authConfigFile : [];
+if (!is_array($authConfig)) {
+    $authConfig = [
+        'google_client_id' => '834120129002-ov166c1k38dk91e1fe1e10jgjv689nb3.apps.googleusercontent.com',
+        'allowed_domain' => '',
+        'default_role' => 'member',
+        'mock_mode_enabled' => true
+    ];
+}
+if (empty($authConfig['google_client_id'])) {
+    $authConfig['google_client_id'] = '834120129002-ov166c1k38dk91e1fe1e10jgjv689nb3.apps.googleusercontent.com';
+}
+
+if (session_status() === PHP_SESSION_NONE) {
+    @session_start();
+}
+$sessionUser = $_SESSION['user'] ?? null;
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -40,6 +60,10 @@ if ($initialDataJson === '{}' || empty($initialDataJson)) {
   <!-- Preloaded Data for Instant Zero-Lag Rendering -->
   <script>
     window.INITIAL_BOARD_DATA = <?= !empty($initialDataJson) ? $initialDataJson : '{}' ?>;
+    window.PRELOADED_AUTH = {
+      config: <?= json_encode($authConfig, JSON_UNESCAPED_UNICODE) ?>,
+      user: <?= json_encode($sessionUser, JSON_UNESCAPED_UNICODE) ?>
+    };
   </script>
 
   <!-- Tailwind CSS -->

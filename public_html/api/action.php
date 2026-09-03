@@ -1,24 +1,39 @@
 <?php
 declare(strict_types=1);
 
-// Direct Zero-Dependency API Endpoint (Works on 100% of Web Servers without URL Rewrite)
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        http_response_code(200);
+        echo json_encode(['success' => false, 'fatal_error' => $error], JSON_UNESCAPED_UNICODE);
+    }
+});
 
 if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
 
-require_once __DIR__ . '/services/DataPersistence.php';
-require_once __DIR__ . '/controllers/BoardController.php';
-require_once __DIR__ . '/controllers/ItemController.php';
-require_once __DIR__ . '/controllers/AuthController.php';
-
-if (session_status() === PHP_SESSION_NONE) {
-    @session_start();
+try {
+    if (session_status() === PHP_SESSION_NONE) {
+        @session_start();
+    }
+    require_once __DIR__ . '/services/DataPersistence.php';
+    require_once __DIR__ . '/controllers/BoardController.php';
+    require_once __DIR__ . '/controllers/ItemController.php';
+    require_once __DIR__ . '/controllers/AuthController.php';
+} catch (Throwable $t) {
+    http_response_code(200);
+    echo json_encode(['success' => false, 'error' => $t->getMessage()], JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
 // Parse Request Body & Parameters

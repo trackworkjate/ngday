@@ -135,11 +135,11 @@ document.addEventListener("alpine:init", () => {
     toastMessage: "",
 
     // User Authentication & Roles (RBAC)
-    currentUser: null,
+    currentUser: window.PRELOADED_AUTH?.user || null,
     authConfig: {
-      google_client_id: "",
-      allowed_domain: "",
-      default_role: "member",
+      google_client_id: window.PRELOADED_AUTH?.config?.google_client_id || "834120129002-ov166c1k38dk91e1fe1e10jgjv689nb3.apps.googleusercontent.com",
+      allowed_domain: window.PRELOADED_AUTH?.config?.allowed_domain || "",
+      default_role: window.PRELOADED_AUTH?.config?.default_role || "member",
       mock_mode_enabled: true
     },
     isAuthLoading: false,
@@ -148,9 +148,9 @@ document.addEventListener("alpine:init", () => {
     userDropdownOpen: false,
     userList: [],
     authSettingsForm: {
-      google_client_id: "",
-      allowed_domain: "",
-      default_role: "member"
+      google_client_id: window.PRELOADED_AUTH?.config?.google_client_id || "834120129002-ov166c1k38dk91e1fe1e10jgjv689nb3.apps.googleusercontent.com",
+      allowed_domain: window.PRELOADED_AUTH?.config?.allowed_domain || "",
+      default_role: window.PRELOADED_AUTH?.config?.default_role || "member"
     },
 
     // RBAC Permission Helpers
