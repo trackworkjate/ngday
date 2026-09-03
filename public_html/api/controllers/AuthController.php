@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/database.php';
@@ -87,7 +87,7 @@ class AuthController {
 
     private function getPdoSafe(): ?PDO {
         try {
-            $pdo = Database::getInstance();
+            $pdo = Database::getConnection();
             self::ensureTables($pdo);
             return $pdo;
         } catch (Throwable $e) {
