@@ -847,7 +847,7 @@ if ($sessionUser) {
 
               <!-- ITEMS LIST -->
               <div class="divide-y divide-[#e6e9ef]">
-                <template x-for="item in getSortedItems(group.items)" :key="item.id">
+                <template x-for="item in getSortedItems(group.items)" :key="item.id + '_' + boardRevision">
                   <div class="group/itemrow">
                     
                     <!-- 1. MAIN TASK ROW -->
@@ -1281,7 +1281,7 @@ if ($sessionUser) {
                                 </tr>
                               </thead>
                               <tbody class="divide-y divide-[#e6e9ef]">
-                                <template x-for="(sub, sIdx) in getSortedSubitems(item)" :key="sub.id">
+                                <template x-for="(sub, sIdx) in getSortedSubitems(item)" :key="sub.id + '_' + boardRevision">
                                   <tr 
                                     class="hover:bg-[#f5f6f8] transition-colors group/subrow"
                                     :class="{'bg-[#edf5ff] hover:bg-[#e4efff]': isItemSelected(sub.id)}"
@@ -1298,7 +1298,7 @@ if ($sessionUser) {
                                       <input type="text" :value="sub.name" @change="updateItemName(sub, $event.target.value, item)" class="w-full bg-transparent hover:bg-white focus:bg-white px-2 py-1 rounded text-xs text-gray-800 border border-transparent focus:border-blue-400 outline-none font-medium truncate" />
                                     </td>
                                     <td class="px-2 py-1.5 text-center">
-                                      <button @click="openUpdatesDrawer(sub)" class="inline-flex items-center justify-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold" :class="sub.update_count > 0 ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-blue-600 border border-dashed border-gray-300'">
+                                      <button @click="openUpdatesDrawer(sub, item)" class="inline-flex items-center justify-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold" :class="sub.update_count > 0 ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-blue-600 border border-dashed border-gray-300'">
                                         <i data-lucide="message-square" class="w-3 h-3"></i>
                                         <span class="text-[10px]" x-text="sub.update_count > 0 ? sub.update_count : '+'"></span>
                                       </button>

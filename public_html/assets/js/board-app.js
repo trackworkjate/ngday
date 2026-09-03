@@ -1178,9 +1178,22 @@ document.addEventListener("alpine:init", () => {
         }).catch(() => {});
       }
 
+      this.refreshBoardReactive();
+    },
+
+    refreshBoardReactive() {
       this.boardRevision = (this.boardRevision || 0) + 1;
-      this.groups = [...this.groups];
+      this.groups = (this.groups || []).map(g => ({
+        ...g,
+        items: (g.items || []).map(it => ({
+          ...it,
+          subitems: (it.subitems || []).map(s => ({ ...s }))
+        }))
+      }));
       this.persistToLocalStorage();
+      this.$nextTick(() => {
+        if (typeof lucide !== "undefined") lucide.createIcons();
+      });
     },
 
     // Cell Mutations with Optimistic UI Update and Permanent Persistence
@@ -1513,8 +1526,7 @@ document.addEventListener("alpine:init", () => {
       if (this.activeItemParent) {
         this.recordLastUpdate(this.activeItemParent);
       }
-      this.boardRevision = (this.boardRevision || 0) + 1;
-      this.groups = [...this.groups];
+      this.refreshBoardReactive();
       this.isSubmittingUpdate = false;
       this.showToast("✅ บันทึกอัปเดตเรียบร้อย");
 
