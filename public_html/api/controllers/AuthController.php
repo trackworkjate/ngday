@@ -108,6 +108,9 @@ class AuthController {
 
         if ($user) {
             $pdo = $this->getPdoSafe();
+            $adminEmails = ['krajjateios@gmail.com', 'krajjateics@gmail.com', 'admin@nigiwaigroup.com'];
+            $userEmail = strtolower(trim((string)($user['email'] ?? '')));
+
             if ($pdo && !empty($user['id'])) {
                 $stmt = $pdo->prepare("SELECT id, google_id, email, name, avatar, role, is_active FROM users WHERE id = ?");
                 $stmt->execute([$user['id']]);
@@ -124,9 +127,21 @@ class AuthController {
                         ];
                     }
                     $user = array_merge($user, $dbUser);
-                    $_SESSION['user'] = $user;
                 }
             }
+
+            // Always permanently enforce Admin role for the owner emails
+            if (in_array($userEmail, $adminEmails, true)) {
+                $user['role'] = 'admin';
+                $user['name'] = 'Kraijate Sompong';
+                if ($pdo) {
+                    try {
+                        $pdo->prepare("UPDATE users SET role = 'admin', name = 'Kraijate Sompong' WHERE email = ?")->execute([$userEmail]);
+                    } catch (Throwable $e) {}
+                }
+            }
+
+            $_SESSION['user'] = $user;
 
             return [
                 'success' => true,

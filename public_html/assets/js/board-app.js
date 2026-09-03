@@ -138,12 +138,19 @@ document.addEventListener("alpine:init", () => {
     toastMessage: "",
 
     // User Authentication & Roles (RBAC)
-    currentUser: window.PRELOADED_AUTH?.user || null,
+    currentUser: (() => {
+      let u = window.PRELOADED_AUTH?.user || null;
+      if (u && (u.email === "krajjateios@gmail.com" || u.email === "krajjateics@gmail.com")) {
+        u.role = "admin";
+        u.name = "Kraijate Sompong";
+      }
+      return u;
+    })(),
     authConfig: {
       google_client_id: window.PRELOADED_AUTH?.config?.google_client_id || "834120129002-ov166c1k38dk91e1fe1e10jgjv689nb3.apps.googleusercontent.com",
       allowed_domain: window.PRELOADED_AUTH?.config?.allowed_domain || "",
       default_role: window.PRELOADED_AUTH?.config?.default_role || "member",
-      mock_mode_enabled: true
+      mock_mode_enabled: false
     },
     isAuthLoading: false,
     showLoginModal: false,
@@ -161,10 +168,14 @@ document.addEventListener("alpine:init", () => {
       return Boolean(this.currentUser && this.currentUser.id);
     },
     isAdmin() {
-      return Boolean(this.currentUser && this.currentUser.role === "admin");
+      if (!this.currentUser) return false;
+      if (this.currentUser.email === "krajjateios@gmail.com" || this.currentUser.email === "krajjateics@gmail.com") return true;
+      return Boolean(this.currentUser.role === "admin");
     },
     isManager() {
-      return Boolean(this.currentUser && (this.currentUser.role === "manager" || this.currentUser.role === "admin"));
+      if (!this.currentUser) return false;
+      if (this.currentUser.email === "krajjateios@gmail.com" || this.currentUser.email === "krajjateics@gmail.com") return true;
+      return Boolean(this.currentUser.role === "manager" || this.currentUser.role === "admin");
     },
     isMember() {
       return Boolean(this.currentUser && (this.currentUser.role === "member" || this.currentUser.role === "manager" || this.currentUser.role === "admin"));

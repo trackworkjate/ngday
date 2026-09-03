@@ -52,6 +52,13 @@ if (session_status() === PHP_SESSION_NONE) {
 if (isset($_SESSION['user']) && ($_SESSION['user']['name'] === 'ผู้ดูแลระบบ (Admin)' || empty($_SESSION['user']['avatar']) || strpos($_SESSION['user']['avatar'] ?? '', 'ui-avatars.com') !== false)) {
     unset($_SESSION['user']);
 }
+if (isset($_SESSION['user'])) {
+    $email = strtolower($_SESSION['user']['email'] ?? '');
+    if (in_array($email, ['krajjateios@gmail.com', 'krajjateics@gmail.com', 'admin@nigiwaigroup.com'], true)) {
+        $_SESSION['user']['role'] = 'admin';
+        $_SESSION['user']['name'] = 'Kraijate Sompong';
+    }
+}
 $sessionUser = $_SESSION['user'] ?? null;
 ?>
 <!DOCTYPE html>
