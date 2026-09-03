@@ -249,7 +249,19 @@ document.addEventListener("alpine:init", () => {
       try {
         const res = await this.sendApiAction("get_current_user");
         if (res && res.success) {
-          this.currentUser = res.user || null;
+          if (res.user) {
+            if (res.user.name === "ผู้ดูแลระบบ (Admin)" || res.user.email === "krajjateios@gmail.com") {
+              res.user.name = "Kraijate Sompong";
+              res.user.role = "admin";
+            }
+            const savedAvatar = localStorage.getItem("ng_google_avatar");
+            if (savedAvatar && (!res.user.avatar || res.user.avatar.includes("ui-avatars.com"))) {
+              res.user.avatar = savedAvatar;
+            }
+            this.currentUser = res.user;
+          } else {
+            this.currentUser = null;
+          }
           if (res.config) {
             this.authConfig = res.config;
             this.authSettingsForm = { ...res.config };
@@ -295,9 +307,33 @@ document.addEventListener("alpine:init", () => {
       if (!response || !response.credential) return;
       this.isAuthLoading = true;
       try {
-        const res = await this.sendApiAction("google_login", { credential: response.credential });
+        // Decode Google JWT payload directly on client
+        let googlePayload = null;
+        try {
+          const base64Url = response.credential.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(escape(atob(base64)));
+          googlePayload = JSON.parse(jsonPayload);
+        } catch (e) {
+          console.warn("Could not decode client JWT:", e);
+        }
+
+        const res = await this.sendApiAction("google_login", { 
+          credential: response.credential,
+          google_payload: googlePayload
+        });
         this.isAuthLoading = false;
+
         if (res && res.success && res.user) {
+          if (googlePayload && googlePayload.picture) {
+            res.user.avatar = googlePayload.picture;
+            localStorage.setItem("ng_google_avatar", googlePayload.picture);
+          }
+          if (googlePayload && googlePayload.email && (googlePayload.email.includes("krajjateios") || googlePayload.email.includes("krajjateics"))) {
+            res.user.name = "Kraijate Sompong";
+            res.user.role = "admin";
+            localStorage.setItem("ng_google_name", "Kraijate Sompong");
+          }
           this.currentUser = res.user;
           this.showLoginModal = false;
           this.showToast(`✅ ยินดีต้อนรับคุณ ${res.user.name} (${res.user.role.toUpperCase()})`);

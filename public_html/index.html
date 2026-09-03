@@ -48,6 +48,10 @@ if (empty($authConfig['google_client_id'])) {
 if (session_status() === PHP_SESSION_NONE) {
     @session_start();
 }
+// Automatically purge any old fake mock session so users log in with Google Profile
+if (isset($_SESSION['user']) && ($_SESSION['user']['name'] === 'ผู้ดูแลระบบ (Admin)' || empty($_SESSION['user']['avatar']) || strpos($_SESSION['user']['avatar'] ?? '', 'ui-avatars.com') !== false)) {
+    unset($_SESSION['user']);
+}
 $sessionUser = $_SESSION['user'] ?? null;
 ?>
 <!DOCTYPE html>
@@ -454,40 +458,6 @@ $sessionUser = $_SESSION['user'] ?? null;
                     <span>จัดการผู้ใช้งาน & กำหนดสิทธิ์</span>
                   </button>
                 </div>
-
-                <!-- Quick Switch Role (for Testing) -->
-                <div class="py-1">
-                  <div class="px-4 py-1 text-[10px] uppercase font-bold text-gray-400 tracking-wider">ทดสอบสลับ Role:</div>
-                  <div class="grid grid-cols-2 gap-1 px-3 py-1">
-                    <button 
-                      @click="mockLoginAs('admin')" 
-                      class="px-2 py-1 rounded text-left font-medium text-[11px] hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-1.5 transition-colors"
-                      :class="{'bg-indigo-100 font-bold text-indigo-800': currentUser.role === 'admin'}"
-                    >
-                      <span>👑 Admin</span>
-                    </button>
-                    <button 
-                      @click="mockLoginAs('manager')" 
-                      class="px-2 py-1 rounded text-left font-medium text-[11px] hover:bg-sky-50 hover:text-sky-700 flex items-center gap-1.5 transition-colors"
-                      :class="{'bg-sky-100 font-bold text-sky-800': currentUser.role === 'manager'}"
-                    >
-                      <span>👔 Manager</span>
-                    </button>
-                    <button 
-                      @click="mockLoginAs('member')" 
-                      class="px-2 py-1 rounded text-left font-medium text-[11px] hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-1.5 transition-colors"
-                      :class="{'bg-emerald-100 font-bold text-emerald-800': currentUser.role === 'member'}"
-                    >
-                      <span>👷 Member</span>
-                    </button>
-                    <button 
-                      @click="mockLoginAs('viewer')" 
-                      class="px-2 py-1 rounded text-left font-medium text-[11px] hover:bg-purple-50 hover:text-purple-700 flex items-center gap-1.5 transition-colors"
-                      :class="{'bg-purple-100 font-bold text-purple-800': currentUser.role === 'viewer'}"
-                    >
-                      <span>👁️ Viewer</span>
-                    </button>
-                  </div>
                 </div>
 
                 <!-- Sign Out -->
@@ -1824,77 +1794,6 @@ $sessionUser = $_SESSION['user'] ?? null;
             </template>
           </div>
 
-          <!-- Divider -->
-          <div class="relative flex items-center justify-center">
-            <div class="border-t border-gray-200 w-full"></div>
-            <span class="bg-white px-3 text-[11px] text-gray-400 font-bold uppercase tracking-wider absolute">หรือเลือกสิทธิ์เพื่อทดสอบ</span>
-          </div>
-
-          <!-- Quick Role Switcher Cards -->
-          <div class="space-y-2">
-            <button 
-              @click="mockLoginAs('admin')" 
-              class="w-full p-3 rounded-xl border border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100/70 text-left flex items-center justify-between group transition-all"
-            >
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-sm font-bold shadow-xs">
-                  👑
-                </div>
-                <div>
-                  <div class="text-xs font-bold text-indigo-950">ผู้ดูแลระบบ (Admin)</div>
-                  <div class="text-[11px] text-indigo-700">สิทธิ์เต็ม 100% จัดการผู้ใช้งานและโครงสร้างบอร์ด</div>
-                </div>
-              </div>
-              <i data-lucide="chevron-right" class="w-4 h-4 text-indigo-400 group-hover:translate-x-0.5 transition-transform"></i>
-            </button>
-
-            <button 
-              @click="mockLoginAs('manager')" 
-              class="w-full p-3 rounded-xl border border-sky-200 bg-sky-50/50 hover:bg-sky-100/70 text-left flex items-center justify-between group transition-all"
-            >
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-sky-600 text-white flex items-center justify-center text-sm font-bold shadow-xs">
-                  👔
-                </div>
-                <div>
-                  <div class="text-xs font-bold text-sky-950">ผู้จัดการโครงการ (Manager)</div>
-                  <div class="text-[11px] text-sky-700">เพิ่ม/ลบ Task, ตั้ง Timeline, Soft/Grand Opening</div>
-                </div>
-              </div>
-              <i data-lucide="chevron-right" class="w-4 h-4 text-sky-400 group-hover:translate-x-0.5 transition-transform"></i>
-            </button>
-
-            <button 
-              @click="mockLoginAs('member')" 
-              class="w-full p-3 rounded-xl border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100/70 text-left flex items-center justify-between group transition-all"
-            >
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-sm font-bold shadow-xs">
-                  👷
-                </div>
-                <div>
-                  <div class="text-xs font-bold text-emerald-950">พนักงานผู้รับผิดชอบ (Member)</div>
-                  <div class="text-[11px] text-emerald-700">เปลี่ยนสถานะงาน (Done/Working) และโพสต์ Updates</div>
-                </div>
-              </div>
-              <i data-lucide="chevron-right" class="w-4 h-4 text-emerald-400 group-hover:translate-x-0.5 transition-transform"></i>
-            </button>
-
-            <button 
-              @click="mockLoginAs('viewer')" 
-              class="w-full p-3 rounded-xl border border-purple-200 bg-purple-50/50 hover:bg-purple-100/70 text-left flex items-center justify-between group transition-all"
-            >
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center text-sm font-bold shadow-xs">
-                  👁️
-                </div>
-                <div>
-                  <div class="text-xs font-bold text-purple-950">ผู้เข้าชม / ผู้บริหาร (Viewer)</div>
-                  <div class="text-[11px] text-purple-700">สิทธิ์ดูอย่างเดียว (Read-Only) ปิดการแก้ไขทั้งหมด</div>
-                </div>
-              </div>
-              <i data-lucide="chevron-right" class="w-4 h-4 text-purple-400 group-hover:translate-x-0.5 transition-transform"></i>
-            </button>
           </div>
         </div>
       </div>
