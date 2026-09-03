@@ -1588,8 +1588,13 @@ $sessionUser = $_SESSION['user'] ?? null;
               <div class="bg-white rounded-lg p-4 border border-gray-200 shadow-2xs space-y-2 hover:border-gray-300 transition-colors">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-2">
-                    <div class="w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shadow-xs" x-text="update.user_name ? update.user_name.substring(0, 2).toUpperCase() : 'OP'"></div>
-                    <span class="text-xs font-bold text-gray-800" x-text="update.user_name || 'Operations Team'"></span>
+                    <template x-if="update.user_avatar || update.avatar">
+                      <img :src="update.user_avatar || update.avatar" class="w-7 h-7 rounded-full object-cover shadow-xs border border-gray-200" :alt="update.user_name" />
+                    </template>
+                    <template x-if="!(update.user_avatar || update.avatar)">
+                      <div class="w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shadow-xs" x-text="update.user_name ? update.user_name.substring(0, 2).toUpperCase() : 'US'"></div>
+                    </template>
+                    <span class="text-xs font-bold text-gray-800" x-text="update.user_name || 'ผู้ใช้งานระบบ'"></span>
                   </div>
                   <span class="text-[10px] text-gray-400" x-text="update.created_at || 'Recently'"></span>
                 </div>

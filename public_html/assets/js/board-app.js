@@ -1056,13 +1056,10 @@ document.addEventListener("alpine:init", () => {
       }
 
       try {
-        const res = await fetch(`api/items/${item.id}/updates`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && data.updates) {
-            this.itemUpdates = data.updates;
-            this.activeItemForUpdates.update_count = data.updates.length;
-          }
+        const res = await this.sendApiAction("get_updates", { item_id: item.id });
+        if (res && res.success && res.updates) {
+          this.itemUpdates = res.updates;
+          this.activeItemForUpdates.update_count = res.updates.length;
         }
       } catch (e) {
         console.warn("Could not fetch remote updates, showing local updates");
@@ -1077,10 +1074,14 @@ document.addEventListener("alpine:init", () => {
       this.isSubmittingUpdate = true;
 
       const content = this.newUpdateContent.trim();
+      const authorName = (this.currentUser && this.currentUser.name) ? this.currentUser.name : "ผู้ใช้งานระบบ";
+      const authorAvatar = (this.currentUser && this.currentUser.avatar) ? this.currentUser.avatar : null;
+
       const newUp = {
         id: "temp_" + Date.now(),
         item_id: this.activeItemForUpdates.id,
-        user_name: "Operations Team",
+        user_name: authorName,
+        user_avatar: authorAvatar,
         content: content,
         created_at: new Date().toLocaleString("th-TH"),
         likes_count: 0
@@ -1095,15 +1096,15 @@ document.addEventListener("alpine:init", () => {
       this.newUpdateContent = "";
 
       try {
-        await fetch(`api/items/${this.activeItemForUpdates.id}/updates`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_name: "Operations Team",
-            content: content
-          })
+        await this.sendApiAction("add_update", {
+          item_id: this.activeItemForUpdates.id,
+          user_name: authorName,
+          user_avatar: authorAvatar,
+          content: content
         });
-      } catch (e) {}
+      } catch (e) {
+        console.warn("Could not save update to server:", e);
+      }
       this.isSubmittingUpdate = false;
       this.$nextTick(() => {
         if (typeof lucide !== "undefined") lucide.createIcons();

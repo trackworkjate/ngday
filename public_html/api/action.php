@@ -204,6 +204,20 @@ try {
             $response = ['success' => $saved, 'saved_at' => date('Y-m-d H:i:s')];
             break;
 
+        case 'get_updates':
+            require_once __DIR__ . '/controllers/UpdateController.php';
+            $itemId = (int)($input['item_id'] ?? 0);
+            $ctrl = new UpdateController();
+            $response = $ctrl->getUpdates($itemId);
+            break;
+
+        case 'add_update':
+            require_once __DIR__ . '/controllers/UpdateController.php';
+            $itemId = (int)($input['item_id'] ?? 0);
+            $ctrl = new UpdateController();
+            $response = $ctrl->createUpdate($itemId, $input);
+            break;
+
         case 'get_board':
         default:
             $boardId = (int)($input['board_id'] ?? 1);
